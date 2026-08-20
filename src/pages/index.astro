@@ -1,0 +1,8 @@
+---
+import Layout from "../layouts/Layout.astro";
+import DashboardPage from "../islands/DashboardPage.tsx";
+---
+
+<Layout title="Inicio | LABMANAGE">
+  <DashboardPage client:only="react" />
+</Layout>

@@ -1,0 +1,8 @@
+---
+import Layout from "../layouts/Layout.astro";
+import LoginForm from "../islands/LoginForm.tsx";
+---
+
+<Layout title="Iniciar sesión | LABMANAGE">
+  <LoginForm client:only="react" />
+</Layout>
