@@ -1,9 +1,10 @@
 // Sincronizar con api/src/types/
 export type UserRole = "ENCARGADO" | "AYUDANTE";
 export type ClassroomType = "LAB_COMPUTACION" | "LAB_GENERAL" | "AULA";
-export type ScheduleType = "CLASE" | "ACTIVIDAD" | "MANTENIMIENTO";
+export type ClassroomStatus = "ACTIVA" | "INACTIVA" | "EN_MANTENIMIENTO" | "FUERA_SERVICIO";
+export type CourseOfferingType = "CLASE" | "EXTRACURRICULAR" | "ACTIVIDAD";
 export type MaintenanceStatus = "REPORTADO" | "EN_PROGRESO" | "COMPLETADO";
-export type CellStatus = "LIBRE" | "OCUPADA" | "MANTENIMIENTO";
+export type CellStatus = "LIBRE" | "OCUPADA";
 
 // Sincronizar con api/src/types/
 export interface User {
@@ -12,8 +13,47 @@ export interface User {
   email: string;
   role: UserRole;
   active: boolean;
-  createdAt: string; // ISO 8601
-  updatedAt: string; // ISO 8601
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Sincronizar con api/src/types/
+export interface Teacher {
+  id: string;
+  code: string;
+  name: string;
+  email: string | null;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Sincronizar con api/src/types/
+export interface Subject {
+  id: string;
+  code: string;
+  name: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Sincronizar con api/src/types/
+export interface CourseOfferingSummary {
+  id: string;
+  semesterId: string;
+  section: string;
+  type: CourseOfferingType;
+  subject: { id: string; code: string; name: string };
+  teacher: { id: string; code: string; name: string } | null;
+}
+
+// Sincronizar con api/src/types/
+export interface CourseOffering extends CourseOfferingSummary {
+  note: string | null;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // Sincronizar con api/src/types/
@@ -24,7 +64,7 @@ export interface Classroom {
   type: ClassroomType;
   capacity: number | null;
   location: string | null;
-  active: boolean;
+  status: ClassroomStatus;
   createdAt: string;
   updatedAt: string;
 }
@@ -32,18 +72,18 @@ export interface Classroom {
 // Sincronizar con api/src/types/
 export interface TimeSlot {
   id: string;
-  label: string; // "1° período"
-  startTime: string; // "07:15"
-  endTime: string; // "08:45"
-  order: number; // 1-9
+  label: string;
+  startTime: string;
+  endTime: string;
+  order: number;
 }
 
 // Sincronizar con api/src/types/
 export interface Semester {
   id: string;
   name: string;
-  startDate: string; // ISO
-  endDate: string; // ISO
+  startDate: string;
+  endDate: string;
   isActive: boolean;
 }
 
@@ -51,13 +91,13 @@ export interface Semester {
 export interface Schedule {
   id: string;
   classroomId: string;
+  classroom: { id: string; code: string; name: string };
   semesterId: string;
-  dayOfWeek: number; // 1-6
+  dayOfWeek: number;
   timeSlotId: string;
   timeSlot: TimeSlot;
-  type: ScheduleType;
-  title: string;
-  teacher: string | null;
+  courseOfferingId: string;
+  courseOffering: CourseOfferingSummary;
   note: string | null;
   assignedById: string;
   assignedBy: { id: string; name: string };
@@ -70,7 +110,7 @@ export interface Annotation {
   classroomId: string;
   userId: string;
   user: { id: string; name: string };
-  date: string; // ISO
+  date: string;
   content: string;
 }
 
@@ -79,7 +119,7 @@ export interface MaintenanceLog {
   id: string;
   classroomId: string;
   classroom: { id: string; code: string; name: string };
-  date: string; // ISO (día calendario)
+  date: string;
   reason: string;
   status: MaintenanceStatus;
   createdById: string;
@@ -94,8 +134,8 @@ export interface StatsOverview {
   occupancyByClassroom: {
     classroom: { id: string; code: string; name: string };
     occupiedSlots: number;
-    totalSlots: number; // Total de turnos por semana del semestre activo
-    percentage: number; // 0-100
+    totalSlots: number;
+    percentage: number;
   }[];
   pendingMaintenance: number;
 }

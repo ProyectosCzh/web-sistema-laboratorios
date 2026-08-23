@@ -103,7 +103,7 @@ export default function MaintenancePanel() {
               >
                 <option value="">Seleccioná un aula</option>
                 {classrooms
-                  .filter((c) => c.active)
+                  .filter((c) => c.status === "ACTIVA")
                   .map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.code} - {c.name}

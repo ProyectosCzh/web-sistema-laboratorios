@@ -2,9 +2,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { api, apiErrorToMessage } from "../lib/api";
 import { useAuth } from "../lib/auth";
-import { CLASSROOM_TYPES, CLASSROOM_TYPE_LABELS } from "../lib/constants";
+import { CLASSROOM_TYPES, CLASSROOM_TYPE_LABELS, CLASSROOM_STATUS_LABELS, CLASSROOM_STATUS_COLORS } from "../lib/constants";
 import { isEncargado } from "../lib/permissions";
-import type { Classroom, ClassroomType } from "../lib/types";
+import type { Classroom, ClassroomType, ClassroomStatus } from "../lib/types";
 import Modal from "./Modal";
 
 interface ClassroomFormState {
@@ -13,6 +13,7 @@ interface ClassroomFormState {
   type: ClassroomType;
   capacity: string;
   location: string;
+  status: ClassroomStatus;
 }
 
 const emptyForm: ClassroomFormState = {
@@ -21,6 +22,7 @@ const emptyForm: ClassroomFormState = {
   type: "AULA",
   capacity: "",
   location: "",
+  status: "ACTIVA",
 };
 
 export default function ClassroomGrid() {
@@ -30,17 +32,21 @@ export default function ClassroomGrid() {
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"" | ClassroomType>("");
+  const [statusFilter, setStatusFilter] = useState<"" | ClassroomStatus>("");
   const [modal, setModal] = useState<{ mode: "create" } | { mode: "edit"; classroom: Classroom } | null>(null);
   const [form, setForm] = useState<ClassroomFormState>(emptyForm);
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState<Classroom | null>(null);
 
   const { data, isLoading, isError, error: queryError, refetch } = useQuery({
-    queryKey: ["classrooms"],
+    queryKey: ["classrooms", statusFilter, isAdmin],
     queryFn: async () =>
       (
         await api.get<{ classrooms: Classroom[] }>("/classrooms", {
-          params: isAdmin ? { includeInactive: true } : {},
+          params: {
+            ...(isAdmin ? { includeInactive: true } : {}),
+            ...(statusFilter ? { status: statusFilter } : {}),
+          },
         })
       ).data.classrooms,
   });
@@ -58,6 +64,7 @@ export default function ClassroomGrid() {
         type: form.type,
         capacity: form.capacity.trim() ? parseInt(form.capacity, 10) : undefined,
         location: form.location.trim() || null,
+        ...(isAdmin ? { status: form.status } : {}),
       };
       if (modal?.mode === "edit") {
         await api.patch(`/classrooms/${modal.classroom.id}`, body);
@@ -96,6 +103,7 @@ export default function ClassroomGrid() {
       type: classroom.type,
       capacity: classroom.capacity != null ? String(classroom.capacity) : "",
       location: classroom.location ?? "",
+      status: classroom.status,
     });
     setError(null);
     setModal({ mode: "edit", classroom });
@@ -160,6 +168,19 @@ export default function ClassroomGrid() {
           ))}
         </select>
         {isAdmin && (
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as "" | ClassroomStatus)}
+            className="rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          >
+            <option value="">Todos los estados</option>
+            <option value="ACTIVA">Activa</option>
+            <option value="INACTIVA">Inactiva</option>
+            <option value="EN_MANTENIMIENTO">En mantenimiento</option>
+            <option value="FUERA_SERVICIO">Fuera de servicio</option>
+          </select>
+        )}
+        {isAdmin && (
           <button
             onClick={openCreate}
             className="ml-auto rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
@@ -177,7 +198,7 @@ export default function ClassroomGrid() {
             <div
               key={classroom.id}
               className={`flex flex-col rounded-lg border bg-white p-4 ${
-                classroom.active ? "border-gray-200" : "border-gray-300 opacity-60"
+                classroom.status === "ACTIVA" ? "border-gray-200" : "border-gray-300 opacity-60"
               }`}
             >
               <div className="flex items-start justify-between gap-2">
@@ -190,11 +211,11 @@ export default function ClassroomGrid() {
                   </a>
                   <p className="text-sm text-gray-700">{classroom.name}</p>
                 </div>
-                {!classroom.active && (
-                  <span className="rounded bg-gray-200 px-2 py-0.5 text-xs text-gray-700">
-                    Inactiva
-                  </span>
-                )}
+                <span
+                  className={`rounded px-2 py-0.5 text-xs font-medium ${CLASSROOM_STATUS_COLORS[classroom.status]}`}
+                >
+                  {CLASSROOM_STATUS_LABELS[classroom.status]}
+                </span>
               </div>
               <p className="mt-2 text-sm text-gray-600">
                 {CLASSROOM_TYPE_LABELS[classroom.type]}
@@ -287,6 +308,21 @@ export default function ClassroomGrid() {
                 maxLength={200}
               />
             </div>
+            {isAdmin && (
+              <div>
+                <label className={labelClass}>Estado</label>
+                <select
+                  value={form.status}
+                  onChange={(e) => setForm({ ...form, status: e.target.value as ClassroomStatus })}
+                  className={inputClass}
+                >
+                  <option value="ACTIVA">Activa</option>
+                  <option value="INACTIVA">Inactiva</option>
+                  <option value="EN_MANTENIMIENTO">En mantenimiento</option>
+                  <option value="FUERA_SERVICIO">Fuera de servicio</option>
+                </select>
+              </div>
+            )}
             {error && (
               <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                 {error}

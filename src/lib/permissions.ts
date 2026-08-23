@@ -6,7 +6,6 @@ export function isEncargado(user: User | null): boolean {
 
 export function canModifySchedule(user: User | null, schedule: Schedule): boolean {
   if (!user) return false;
-  if (schedule.type === "MANTENIMIENTO") return user.role === "ENCARGADO";
   return user.role === "ENCARGADO" || schedule.assignedById === user.id;
 }
 

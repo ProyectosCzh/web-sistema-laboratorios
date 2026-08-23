@@ -1,17 +1,20 @@
 import type {
   CellStatus,
+  ClassroomStatus,
   ClassroomType,
+  CourseOfferingType,
   MaintenanceStatus,
-  ScheduleType,
   UserRole,
 } from "./types";
 
 export const DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"] as const;
 
-export const CELL_STATUS_COLORS: Record<
-  CellStatus,
-  { bg: string; hoverBg: string; text: string; border: string }
-> = {
+export const CELL_STATUS_LABELS: Record<CellStatus, string> = {
+  LIBRE: "Libre",
+  OCUPADA: "Ocupada",
+};
+
+export const CELL_STATUS_COLORS: Record<CellStatus, { bg: string; hoverBg: string; text: string; border: string }> = {
   LIBRE: {
     bg: "bg-emerald-100",
     hoverBg: "hover:bg-emerald-200",
@@ -24,25 +27,39 @@ export const CELL_STATUS_COLORS: Record<
     text: "text-red-900",
     border: "border-red-200",
   },
-  MANTENIMIENTO: {
-    bg: "bg-amber-100",
-    hoverBg: "hover:bg-amber-200",
-    text: "text-amber-900",
-    border: "border-amber-200",
-  },
 };
 
-export const CELL_STATUS_LABELS: Record<CellStatus, string> = {
-  LIBRE: "Libre",
-  OCUPADA: "Ocupada",
-  MANTENIMIENTO: "Mantenimiento",
+export const CLASSROOM_STATUS_LABELS: Record<ClassroomStatus, string> = {
+  ACTIVA: "Activa",
+  INACTIVA: "Inactiva",
+  EN_MANTENIMIENTO: "En mantenimiento",
+  FUERA_SERVICIO: "Fuera de servicio",
 };
 
-export const SCHEDULE_TYPE_LABELS: Record<ScheduleType, string> = {
+export const CLASSROOM_STATUS_COLORS: Record<ClassroomStatus, string> = {
+  ACTIVA: "bg-emerald-100 text-emerald-800",
+  INACTIVA: "bg-gray-200 text-gray-700",
+  EN_MANTENIMIENTO: "bg-amber-100 text-amber-800",
+  FUERA_SERVICIO: "bg-red-100 text-red-800",
+};
+
+export const CLASSROOM_TYPES: ClassroomType[] = ["LAB_COMPUTACION", "LAB_GENERAL", "AULA"];
+
+export const CLASSROOM_TYPE_LABELS: Record<ClassroomType, string> = {
+  LAB_COMPUTACION: "Laboratorio de computación",
+  LAB_GENERAL: "Laboratorio general",
+  AULA: "Aula",
+};
+
+export const COURSE_OFFERING_TYPES: CourseOfferingType[] = ["CLASE", "EXTRACURRICULAR", "ACTIVIDAD"];
+
+export const COURSE_OFFERING_TYPE_LABELS: Record<CourseOfferingType, string> = {
   CLASE: "Clase",
+  EXTRACURRICULAR: "Extracurricular",
   ACTIVIDAD: "Actividad",
-  MANTENIMIENTO: "Mantenimiento",
 };
+
+export const MAINTENANCE_STATUSES: MaintenanceStatus[] = ["REPORTADO", "EN_PROGRESO", "COMPLETADO"];
 
 export const MAINTENANCE_STATUS_LABELS: Record<MaintenanceStatus, string> = {
   REPORTADO: "Reportado",
@@ -55,14 +72,6 @@ export const MAINTENANCE_STATUS_COLORS: Record<MaintenanceStatus, string> = {
   EN_PROGRESO: "bg-blue-100 text-blue-800",
   COMPLETADO: "bg-emerald-100 text-emerald-800",
 };
-
-export const CLASSROOM_TYPE_LABELS: Record<ClassroomType, string> = {
-  LAB_COMPUTACION: "Laboratorio de computación",
-  LAB_GENERAL: "Laboratorio general",
-  AULA: "Aula",
-};
-
-export const CLASSROOM_TYPES: ClassroomType[] = ["LAB_COMPUTACION", "LAB_GENERAL", "AULA"];
 
 export const USER_ROLE_LABELS: Record<UserRole, string> = {
   ENCARGADO: "Encargado",
@@ -80,13 +89,21 @@ export const ERROR_MESSAGES = {
   FORBIDDEN: "No tenés permisos para esta acción",
   NOT_FOUND: "El recurso no existe",
   RESERVATION_CONFLICT: "Ese turno ya está ocupado en esta aula",
+  TEACHER_CONFLICT: "El docente ya tiene una clase en ese horario",
+  OFFERING_CONFLICT: "La comisión ya está asignada en otro aula a esa hora",
+  CLASSROOM_UNAVAILABLE: "El aula no está disponible (inactiva o en mantenimiento)",
+  SEMESTER_MISMATCH: "La comisión pertenece a otro semestre",
+  INACTIVE_CATALOG_ITEM: "No se puede usar un elemento inactivo (materia, docente o comisión)",
   EMAIL_IN_USE: "Ese email ya está registrado",
   CLASSROOM_CODE_IN_USE: "Ya existe un aula con ese código",
-  USER_HAS_DEPENDENCIES: "No se puede eliminar el usuario porque tiene registros asociados",
-  CONFLICT: "Conflicto con un recurso existente",
-  RATE_LIMIT_EXCEEDED: "Demasiados intentos, intentá de nuevo más tarde",
+  SUBJECT_CODE_IN_USE: "Ya existe una materia con ese código",
+  TEACHER_CODE_IN_USE: "Ya existe un docente con ese código",
+  TEACHER_EMAIL_IN_USE: "Ese email ya está registrado en un docente",
+  OFFERING_ALREADY_EXISTS: "Ya existe esa comisión (semestre, materia, sección, docente)",
   CANNOT_DELETE_SELF: "No podés eliminar tu propio usuario",
   NO_ACTIVE_SEMESTER: "No hay un semestre activo",
+  CONFLICT: "Conflicto con un recurso existente",
+  RATE_LIMIT_EXCEEDED: "Demasiados intentos, intentá de nuevo más tarde",
   INTERNAL_ERROR: "Ocurrió un error inesperado, intentá de nuevo",
 } as const;
 

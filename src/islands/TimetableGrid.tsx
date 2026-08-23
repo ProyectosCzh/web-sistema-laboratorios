@@ -3,9 +3,7 @@ import { useState } from "react";
 import { api, apiErrorToMessage } from "../lib/api";
 import {
   CELL_STATUS_COLORS,
-  CELL_STATUS_LABELS,
   DAYS,
-  SCHEDULE_TYPE_LABELS,
 } from "../lib/constants";
 import type { Schedule, TimeSlot } from "../lib/types";
 import ReservationModal from "./ReservationModal";
@@ -87,6 +85,21 @@ export default function TimetableGrid({ classroomId, semesterId }: TimetableGrid
   const getSchedule = (day: number, timeSlotId: string): Schedule | undefined =>
     schedules.find((s) => s.dayOfWeek === day && s.timeSlotId === timeSlotId);
 
+  const getCellStatus = (cellSchedule: Schedule | undefined): "LIBRE" | "OCUPADA" => {
+    if (!cellSchedule) return "LIBRE";
+    return "OCUPADA";
+  };
+
+  const getCellTitle = (cellSchedule: Schedule | undefined): string => {
+    if (!cellSchedule) return "Libre";
+    const offering = cellSchedule.courseOffering;
+    const subjectName = offering?.subject?.name ?? "";
+    const teacherName = offering?.teacher?.name ?? "";
+    const section = offering?.section ?? "";
+    const typeLabel = offering?.type ?? "";
+    return `${typeLabel} · ${subjectName} ${section ? `· Sección ${section}` : ""}${teacherName ? ` · ${teacherName}` : ""}${cellSchedule.note ? ` · ${cellSchedule.note}` : ""} · ${cellSchedule.assignedBy.name}`;
+  };
+
   return (
     <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
       <table className="w-full border-collapse text-sm">
@@ -95,7 +108,7 @@ export default function TimetableGrid({ classroomId, semesterId }: TimetableGrid
             <th className="border border-gray-200 bg-gray-50 px-3 py-2 text-left font-semibold text-gray-700">
               Turno
             </th>
-            {DAYS.map((day, index) => (
+            {DAYS.map((day) => (
               <th
                 key={day}
                 className="border border-gray-200 bg-gray-50 px-3 py-2 text-center font-semibold text-gray-700"
@@ -118,24 +131,14 @@ export default function TimetableGrid({ classroomId, semesterId }: TimetableGrid
                 {DAYS.map((day, index) => {
                   const dayOfWeek = index + 1;
                   const cellSchedule = getSchedule(dayOfWeek, timeSlot.id);
-                  const cellStatus: keyof typeof CELL_STATUS_COLORS = !cellSchedule
-                    ? "LIBRE"
-                    : cellSchedule.type === "MANTENIMIENTO"
-                      ? "MANTENIMIENTO"
-                      : "OCUPADA";
+                  const cellStatus = getCellStatus(cellSchedule);
                   const cellColors = CELL_STATUS_COLORS[cellStatus];
 
                   return (
                     <td
                       key={day}
                       className="border border-gray-200 p-0"
-                      title={
-                        cellSchedule
-                          ? `${SCHEDULE_TYPE_LABELS[cellSchedule.type]} · ${cellSchedule.title}${
-                              cellSchedule.teacher ? ` · ${cellSchedule.teacher}` : ""
-                            }${cellSchedule.note ? ` · ${cellSchedule.note}` : ""} · ${cellSchedule.assignedBy.name}`
-                          : CELL_STATUS_LABELS[cellStatus]
-                      }
+                      title={getCellTitle(cellSchedule)}
                     >
                       <button
                         onClick={() =>
@@ -147,7 +150,8 @@ export default function TimetableGrid({ classroomId, semesterId }: TimetableGrid
                       >
                         {cellSchedule && (
                           <span className={`block text-xs font-medium ${cellColors.text}`}>
-                            {cellSchedule.title}
+                            {cellSchedule.courseOffering.subject.name}{" "}
+                            {cellSchedule.courseOffering.section ? `(${cellSchedule.courseOffering.section})` : ""}
                           </span>
                         )}
                       </button>

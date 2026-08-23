@@ -9,6 +9,9 @@ const NAV_LINKS = [
 const ADMIN_LINKS = [
   { href: "/usuarios", label: "Usuarios" },
   { href: "/semestres", label: "Semestres" },
+  { href: "/materias", label: "Materias" },
+  { href: "/docentes", label: "Docentes" },
+  { href: "/comisiones", label: "Comisiones" },
 ];
 
 export default function Navbar() {
