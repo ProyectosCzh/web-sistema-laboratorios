@@ -1,63 +1,40 @@
-// Sincronizar con api/src/types/
 export type UserRole = "ENCARGADO" | "AYUDANTE";
 export type ClassroomType = "LAB_COMPUTACION" | "LAB_GENERAL" | "AULA";
 export type ClassroomStatus = "ACTIVA" | "INACTIVA" | "EN_MANTENIMIENTO" | "FUERA_SERVICIO";
-export type CourseOfferingType = "CLASE" | "EXTRACURRICULAR" | "ACTIVIDAD";
+export type ReservationType = "RECURRENTE" | "PUNTUAL";
+export type ReservationStatus = "PENDIENTE" | "CONFIRMADA" | "CANCELADA";
 export type MaintenanceStatus = "REPORTADO" | "EN_PROGRESO" | "COMPLETADO";
-export type CellStatus = "LIBRE" | "OCUPADA";
+export type ClassroomAvailabilityState = "LIBRE" | "OCUPADA" | "MANTENIMIENTO";
 
-// Sincronizar con api/src/types/
-export interface User {
+export interface EntityMeta {
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface User extends EntityMeta {
   id: string;
   name: string;
   email: string;
   role: UserRole;
   active: boolean;
-  createdAt: string;
-  updatedAt: string;
 }
 
-// Sincronizar con api/src/types/
-export interface Teacher {
+export interface Teacher extends EntityMeta {
   id: string;
   code: string;
   name: string;
   email: string | null;
   active: boolean;
-  createdAt: string;
-  updatedAt: string;
 }
 
-// Sincronizar con api/src/types/
-export interface Subject {
+export interface Subject extends EntityMeta {
   id: string;
   code: string;
   name: string;
   active: boolean;
-  createdAt: string;
-  updatedAt: string;
 }
 
-// Sincronizar con api/src/types/
-export interface CourseOfferingSummary {
-  id: string;
-  semesterId: string;
-  section: string;
-  type: CourseOfferingType;
-  subject: { id: string; code: string; name: string };
-  teacher: { id: string; code: string; name: string } | null;
-}
-
-// Sincronizar con api/src/types/
-export interface CourseOffering extends CourseOfferingSummary {
-  note: string | null;
-  active: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// Sincronizar con api/src/types/
-export interface Classroom {
+export interface Classroom extends EntityMeta {
   id: string;
   code: string;
   name: string;
@@ -65,11 +42,8 @@ export interface Classroom {
   capacity: number | null;
   location: string | null;
   status: ClassroomStatus;
-  createdAt: string;
-  updatedAt: string;
 }
 
-// Sincronizar con api/src/types/
 export interface TimeSlot {
   id: string;
   label: string;
@@ -78,85 +52,184 @@ export interface TimeSlot {
   order: number;
 }
 
-// Sincronizar con api/src/types/
-export interface Semester {
+export interface Semester extends EntityMeta {
   id: string;
   name: string;
   startDate: string;
   endDate: string;
+  workingDays: number[];
   isActive: boolean;
 }
 
-// Sincronizar con api/src/types/
+export interface NamedRef {
+  id: string;
+  name: string;
+}
+
+export interface CatalogRef {
+  id: string;
+  code: string;
+  name: string;
+}
+
 export interface Schedule {
   id: string;
   classroomId: string;
-  classroom: { id: string; code: string; name: string };
+  classroom: CatalogRef;
   semesterId: string;
+  subjectId: string;
+  subject: CatalogRef;
+  teacherId: string | null;
+  teacher: CatalogRef | null;
   dayOfWeek: number;
   timeSlotId: string;
   timeSlot: TimeSlot;
-  courseOfferingId: string;
-  courseOffering: CourseOfferingSummary;
   note: string | null;
   assignedById: string;
-  assignedBy: { id: string; name: string };
+  assignedBy: NamedRef;
   updatedAt: string;
 }
 
-// Sincronizar con api/src/types/
+export interface Reservation {
+  id: string;
+  classroomId: string;
+  classroom: CatalogRef;
+  semesterId: string;
+  type: ReservationType;
+  dayOfWeek: number | null;
+  date: string | null;
+  timeSlotId: string;
+  timeSlot: TimeSlot;
+  status: ReservationStatus;
+  note: string | null;
+  requestedById: string;
+  requestedBy: NamedRef;
+  resolvedById: string | null;
+  resolvedBy: NamedRef | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AnnotationRef {
+  id: string;
+  code: string;
+  name: string;
+}
+
 export interface Annotation {
   id: string;
   classroomId: string;
+  classroom?: AnnotationRef;
   userId: string;
-  user: { id: string; name: string };
+  user: NamedRef;
   date: string;
   content: string;
+  createdAt?: string;
 }
 
-// Sincronizar con api/src/types/
 export interface MaintenanceLog {
   id: string;
   classroomId: string;
-  classroom: { id: string; code: string; name: string };
+  classroom: CatalogRef;
   date: string;
   reason: string;
   status: MaintenanceStatus;
-  createdById: string;
-  createdAt: string;
+  createdById?: string;
+  createdBy?: NamedRef;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-// Sincronizar con api/src/types/
+export interface ClassroomStateResult {
+  classroomId: string;
+  classroom: CatalogRef;
+  date: string;
+  dayOfWeek: number;
+  timeSlotId: string;
+  state: ClassroomAvailabilityState;
+  reason?: string;
+  occupiedBy?:
+    | { kind: "SCHEDULE"; schedule: Schedule }
+    | { kind: "RESERVATION"; reservation: Reservation };
+}
+
+export interface AvailabilityGridCell {
+  dayOfWeek: number;
+  timeSlotId: string;
+  entry: null
+    | {
+        kind: "SCHEDULE";
+        scheduleId: string;
+        subject: { id: string; code: string; name: string };
+        teacher: { id: string; code: string; name: string } | null;
+      }
+    | {
+        kind: "RESERVATION";
+        reservationId: string;
+        type: ReservationType;
+        status: ReservationStatus;
+        date: string | null;
+      };
+}
+
+export interface AvailabilityGridClassroom {
+  classroom: CatalogRef;
+  maintenance: Array<{ id: string; date: string; reason: string; status: MaintenanceStatus }>;
+  cells: AvailabilityGridCell[];
+}
+
+export interface AvailabilityGridSemester {
+  id: string;
+  name: string;
+  workingDays: number[];
+  startDate: string;
+  endDate: string;
+}
+
+export interface AvailabilityGrid {
+  semester: AvailabilityGridSemester;
+  timeSlots: TimeSlot[];
+  classrooms: AvailabilityGridClassroom[];
+}
+
 export interface StatsOverview {
   totalClassrooms: number;
   classroomsByType: { type: ClassroomType; count: number }[];
   activeSemester: { id: string; name: string } | null;
   occupancyByClassroom: {
-    classroom: { id: string; code: string; name: string };
+    classroom: CatalogRef;
     occupiedSlots: number;
     totalSlots: number;
     percentage: number;
   }[];
   pendingMaintenance: number;
+  reservationsByStatus: { status: ReservationStatus; count: number }[];
 }
 
-// Sincronizar con api/src/types/
-export interface AuthResponse {
+export interface PageMeta {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface Paginated<T> {
+  data: T[];
+  meta: PageMeta;
+}
+
+export interface AuthPayload {
   token: string;
   user: User;
 }
 
-// Sincronizar con api/src/types/
 export interface ApiErrorDetail {
   field?: string;
   message: string;
 }
 
-// Sincronizar con api/src/types/
-export interface ErrorResponse {
-  error: {
-    code: string;
-    message: string;
-    details?: ApiErrorDetail[];
-  };
+export interface ApiErrorPayload {
+  code: string;
+  message: string;
+  details?: ApiErrorDetail[];
 }
