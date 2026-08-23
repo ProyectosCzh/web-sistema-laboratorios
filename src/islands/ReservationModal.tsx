@@ -32,17 +32,17 @@ export default function ReservationModal({
 
   const { data: timeSlots } = useQuery({
     queryKey: ["timeSlots"],
-    queryFn: async () => (await api.get<{ timeSlots: TimeSlot[] }>("/time-slots")).data.timeSlots,
+    queryFn: async () => (await api.get<{ data: TimeSlot[] }>("/time-slots")).data.data,
   });
 
   const { data: courseOfferings } = useQuery({
     queryKey: ["course-offerings", semesterId],
     queryFn: async () =>
       (
-        await api.get<{ offerings: CourseOffering[] }>("/course-offerings", {
+        await api.get<{ data: CourseOffering[] }>("/course-offerings", {
           params: { semesterId },
         })
-      ).data.offerings,
+      ).data.data,
   });
 
   const dayOfWeek = schedule ? schedule.dayOfWeek : cell?.dayOfWeek;

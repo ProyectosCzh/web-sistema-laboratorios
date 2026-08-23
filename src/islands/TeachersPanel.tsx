@@ -25,10 +25,10 @@ export default function TeachersPanel() {
     queryKey: ["teachers", includeInactive],
     queryFn: async () =>
       (
-        await api.get<{ teachers: Teacher[] }>("/teachers", {
-          params: includeInactive ? { includeInactive: true } : {},
+        await api.get<{ data: Teacher[] }>("/teachers", {
+          params: { pageSize: 100, ...(includeInactive ? { includeInactive: true } : {}) },
         })
-      ).data.teachers,
+      ).data.data,
   });
 
   const invalidate = () => {

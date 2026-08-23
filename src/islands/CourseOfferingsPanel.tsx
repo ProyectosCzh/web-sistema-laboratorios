@@ -36,40 +36,41 @@ export default function CourseOfferingsPanel() {
 
   const semestersQuery = useQuery({
     queryKey: ["semesters"],
-    queryFn: async () => (await api.get<{ semesters: Semester[] }>("/semesters")).data.semesters,
+    queryFn: async () => (await api.get<{ data: Semester[] }>("/semesters")).data.data,
   });
 
   const subjectsQuery = useQuery({
     queryKey: ["subjects", true],
     queryFn: async () =>
       (
-        await api.get<{ subjects: Subject[] }>("/subjects", {
-          params: { includeInactive: true },
+        await api.get<{ data: Subject[] }>("/subjects", {
+          params: { includeInactive: true, pageSize: 100 },
         })
-      ).data.subjects,
+      ).data.data,
   });
 
   const teachersQuery = useQuery({
     queryKey: ["teachers", true],
     queryFn: async () =>
       (
-        await api.get<{ teachers: Teacher[] }>("/teachers", {
-          params: { includeInactive: true },
+        await api.get<{ data: Teacher[] }>("/teachers", {
+          params: { includeInactive: true, pageSize: 100 },
         })
-      ).data.teachers,
+      ).data.data,
   });
 
   const offeringsQuery = useQuery({
     queryKey: ["course-offerings", filterSemesterId, includeInactive],
     queryFn: async () =>
       (
-        await api.get<{ offerings: CourseOffering[] }>("/course-offerings", {
+        await api.get<{ data: CourseOffering[] }>("/course-offerings", {
           params: {
             semesterId: filterSemesterId,
             includeInactive,
+            pageSize: 100,
           },
         })
-      ).data.offerings,
+      ).data.data,
     enabled: !!filterSemesterId,
   });
 

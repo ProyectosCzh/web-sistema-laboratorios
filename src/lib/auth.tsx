@@ -22,11 +22,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     void api
-      .get<{ user: User }>("/auth/me")
+      .get<{ data: { user: User } }>("/auth/me")
       .then((res) => {
         if (cancelled) return;
-        persistSession(token, res.data.user);
-        setSessionState({ token, user: res.data.user });
+        persistSession(token, res.data.data.user);
+        setSessionState({ token, user: res.data.data.user });
       })
       .catch(() => {
         // 401 handling is centralized in api interceptor (clear + redirect).

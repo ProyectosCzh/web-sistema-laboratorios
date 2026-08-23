@@ -20,13 +20,13 @@ export default function MaintenancePanel() {
 
   const classroomsQuery = useQuery({
     queryKey: ["classrooms"],
-    queryFn: async () => (await api.get<{ classrooms: Classroom[] }>("/classrooms")).data.classrooms,
+    queryFn: async () => (await api.get<{ data: Classroom[] }>("/classrooms")).data.data,
   });
 
   const maintenanceQuery = useQuery({
     queryKey: ["maintenance"],
     queryFn: async () =>
-      (await api.get<{ maintenance: MaintenanceLog[] }>("/maintenance")).data.maintenance,
+      (await api.get<{ data: MaintenanceLog[] }>("/maintenance")).data.data,
   });
 
   const invalidate = () => {

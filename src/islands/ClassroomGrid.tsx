@@ -42,13 +42,13 @@ export default function ClassroomGrid() {
     queryKey: ["classrooms", statusFilter, isAdmin],
     queryFn: async () =>
       (
-        await api.get<{ classrooms: Classroom[] }>("/classrooms", {
+        await api.get<{ data: Classroom[] }>("/classrooms", {
           params: {
             ...(isAdmin ? { includeInactive: true } : {}),
             ...(statusFilter ? { status: statusFilter } : {}),
           },
         })
-      ).data.classrooms,
+      ).data.data,
   });
 
   const invalidate = () => {

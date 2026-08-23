@@ -25,7 +25,7 @@ export default function SemestersPanel() {
 
   const { data, isLoading, isError, error: queryError, refetch } = useQuery({
     queryKey: ["semesters"],
-    queryFn: async () => (await api.get<{ semesters: Semester[] }>("/semesters")).data.semesters,
+    queryFn: async () => (await api.get<{ data: Semester[] }>("/semesters")).data.data,
   });
 
   const invalidate = () => {

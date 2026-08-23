@@ -15,12 +15,12 @@ interface ClassroomDetailPageProps {
 function ClassroomDetailInner({ classroomId }: ClassroomDetailPageProps) {
   const classroomsQuery = useQuery({
     queryKey: ["classrooms"],
-    queryFn: async () => (await api.get<{ classrooms: Classroom[] }>("/classrooms")).data.classrooms,
+    queryFn: async () => (await api.get<{ data: Classroom[] }>("/classrooms")).data.data,
   });
 
   const semestersQuery = useQuery({
     queryKey: ["semesters"],
-    queryFn: async () => (await api.get<{ semesters: Semester[] }>("/semesters")).data.semesters,
+    queryFn: async () => (await api.get<{ data: Semester[] }>("/semesters")).data.data,
   });
 
   if (classroomsQuery.isLoading || semestersQuery.isLoading) {

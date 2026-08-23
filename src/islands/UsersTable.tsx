@@ -32,7 +32,7 @@ export default function UsersTable() {
 
   const { data, isLoading, isError, error: queryError, refetch } = useQuery({
     queryKey: ["users"],
-    queryFn: async () => (await api.get<{ users: User[] }>("/users")).data.users,
+    queryFn: async () => (await api.get<{ data: User[] }>("/users", { params: { pageSize: 100 } })).data.data,
   });
 
   const invalidate = () => {

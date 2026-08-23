@@ -24,17 +24,17 @@ export default function TimetableGrid({ classroomId, semesterId }: TimetableGrid
 
   const timeSlotsQuery = useQuery({
     queryKey: ["timeSlots"],
-    queryFn: async () => (await api.get<{ timeSlots: TimeSlot[] }>("/time-slots")).data.timeSlots,
+    queryFn: async () => (await api.get<{ data: TimeSlot[] }>("/time-slots")).data.data,
   });
 
   const schedulesQuery = useQuery({
     queryKey: ["schedules", classroomId, semesterId],
     queryFn: async () =>
       (
-        await api.get<{ schedules: Schedule[] }>("/schedules", {
+        await api.get<{ data: Schedule[] }>("/schedules", {
           params: { classroomId, semesterId },
         })
-      ).data.schedules,
+      ).data.data,
   });
 
   const handleMutated = () => {

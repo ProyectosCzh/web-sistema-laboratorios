@@ -19,10 +19,10 @@ export default function AnnotationPanel({ classroomId }: AnnotationPanelProps) {
     queryKey: ["annotations", classroomId],
     queryFn: async () =>
       (
-        await api.get<{ annotations: Annotation[] }>("/annotations", {
+        await api.get<{ data: Annotation[] }>("/annotations", {
           params: { classroomId },
         })
-      ).data.annotations,
+      ).data.data,
   });
 
   const invalidate = () => {

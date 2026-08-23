@@ -6,7 +6,7 @@ import type { StatsOverview } from "../lib/types";
 export default function StatsDashboard() {
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["stats"],
-    queryFn: async () => (await api.get<StatsOverview>("/stats/overview")).data,
+    queryFn: async () => (await api.get<{ data: StatsOverview }>("/stats/overview")).data.data,
   });
 
   if (isLoading) {

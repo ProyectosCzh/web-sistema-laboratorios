@@ -24,8 +24,8 @@ function LoginInner() {
     setError(null);
     setSubmitting(true);
     try {
-      const res = await api.post<AuthResponse>("/auth/login", { email, password });
-      login(res.data.token, res.data.user);
+      const res = await api.post<{ data: AuthResponse }>("/auth/login", { email, password });
+      login(res.data.data.token, res.data.data.user);
     } catch (err) {
       setError(apiErrorToMessage(err));
       setSubmitting(false);

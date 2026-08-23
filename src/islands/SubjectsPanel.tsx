@@ -24,10 +24,10 @@ export default function SubjectsPanel() {
     queryKey: ["subjects", includeInactive],
     queryFn: async () =>
       (
-        await api.get<{ subjects: Subject[] }>("/subjects", {
-          params: includeInactive ? { includeInactive: true } : {},
+        await api.get<{ data: Subject[] }>("/subjects", {
+          params: { pageSize: 100, ...(includeInactive ? { includeInactive: true } : {}) },
         })
-      ).data.subjects,
+      ).data.data,
   });
 
   const invalidate = () => {
