@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getSession, redirectToLogin } from "../lib/session";
+import { QueryProvider } from "../providers/QueryProvider";
 import { DesktopIcons } from "./system/DesktopIcons";
 import { AuthProvider, useAuth } from "./system/AuthContext";
 import { DialogProvider } from "./system/DialogHost";
@@ -25,15 +26,17 @@ export default function DesktopApp() {
   }
 
   return (
-    <ToastProvider>
-      <DialogProvider>
-        <AuthProvider user={session.user}>
-          <WindowManagerProvider getDefaults={getModuleDefaults}>
-            <Shell />
-          </WindowManagerProvider>
-        </AuthProvider>
-      </DialogProvider>
-    </ToastProvider>
+    <QueryProvider>
+      <ToastProvider>
+        <DialogProvider>
+          <AuthProvider user={session.user}>
+            <WindowManagerProvider getDefaults={getModuleDefaults}>
+              <Shell />
+            </WindowManagerProvider>
+          </AuthProvider>
+        </DialogProvider>
+      </ToastProvider>
+    </QueryProvider>
   );
 }
 

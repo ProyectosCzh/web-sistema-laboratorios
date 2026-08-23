@@ -4,8 +4,17 @@ import { APP_NAME } from "../lib/constants";
 import { apiErrorToMessage } from "../lib/errors";
 import { useLoginMutation } from "../lib/queries/auth";
 import { getSession, redirectToDesktop } from "../lib/session";
+import { QueryProvider } from "../providers/QueryProvider";
 
 export default function LoginScreen() {
+  return (
+    <QueryProvider>
+      <LoginForm />
+    </QueryProvider>
+  );
+}
+
+function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
