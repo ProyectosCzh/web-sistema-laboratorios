@@ -61,11 +61,28 @@ export function vmFromGridEntry(entry: GridEntry): GridEntryVM {
   };
 }
 
-export function buildEntriesFromClassroom(gc: AvailabilityGridClassroom): Record<string, GridEntryVM> {
+export function buildEntriesFromClassroom(
+  gc: AvailabilityGridClassroom,
+): Record<string, GridEntryVM> {
   const map: Record<string, GridEntryVM> = {};
+  const coords: string[] = [];
   for (const cell of gc.cells) {
+    const key = cellKey(cell.dayOfWeek, cell.timeSlotId);
+    coords.push(key);
     if (!cell.entry) continue;
-    map[cellKey(cell.dayOfWeek, cell.timeSlotId)] = vmFromGridEntry(cell.entry);
+    map[key] = vmFromGridEntry(cell.entry);
+  }
+  if (gc.maintenance.some((m) => m.status !== "COMPLETADO")) {
+    for (const key of coords) {
+      if (!map[key]) {
+        map[key] = {
+          kind: "BLOCKED",
+          tone: "blocked",
+          title: "Mantenimiento",
+          subtitle: gc.maintenance.find((m) => m.status !== "COMPLETADO")?.reason,
+        };
+      }
+    }
   }
   return map;
 }

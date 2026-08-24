@@ -66,7 +66,7 @@ export default function UsersModule(_props: ModuleProps) {
       name: requiredText(form.name),
       email: emailError(form.email),
       password:
-        editing && !form.password ? null : minLengthError(form.password, 6),
+        editing && !form.password ? null : minLengthError(form.password, 8),
       role: form.role ? null : "Seleccione un rol.",
     };
     setErrors(next);
@@ -287,7 +287,7 @@ export default function UsersModule(_props: ModuleProps) {
             htmlFor="user-password"
             error={errors.password}
             required={!editing}
-            hint={editing ? "Dejar vacío para conservar la contraseña actual." : "Mínimo 6 caracteres."}
+            hint={editing ? "Dejar vacío para conservar la contraseña actual." : "Mínimo 8 caracteres."}
           >
             <TextInput
               id="user-password"

@@ -5,13 +5,13 @@ import {
   DAY_NAMES,
   RESERVATION_TYPE_LABELS,
 } from "../../../lib/constants";
-import { apiErrorToMessage } from "../../../lib/errors";
 import { fmtDate, todayISO } from "../../../lib/format";
 import { useClassroomListForPick, useClassroomStateQuery } from "../../../lib/queries/classrooms";
 import { useReservationMutations } from "../../../lib/queries/reservations";
 import { useActiveSemester } from "../../../lib/queries/semesters";
 import { useTimeSlotsQuery } from "../../../lib/queries/timeSlots";
 import type { ReservationType } from "../../../lib/types";
+import { reservationErrorToMessage } from "../reservas/ReservationsPanel";
 import { useCurrentTimeSlot } from "../../shared/useCurrentTimeSlot";
 import { useToast } from "../../system/ToastProvider";
 import { useWindowManager } from "../../system/WindowManager";
@@ -28,8 +28,12 @@ export default function NewReservationModule({
 
   const activeSemester = useActiveSemester();
   const classrooms = useClassroomListForPick(true);
-  const slots = useTimeSlotsQuery(true);
-  const currentSlot = useCurrentTimeSlot(slots.data);
+  const slotsQuery = useTimeSlotsQuery(true);
+  const slots = useMemo(
+    () => [...(slotsQuery.data ?? [])].sort((a, b) => a.order - b.order),
+    [slotsQuery.data],
+  );
+  const currentSlot = useCurrentTimeSlot(slots);
   const { create } = useReservationMutations();
 
   const paramClassroomId = typeof params.classroomId === "string" ? params.classroomId : "";
@@ -69,18 +73,60 @@ export default function NewReservationModule({
 
   const verifyInput = useMemo(() => {
     if (!readyToVerify) return null;
-    return type === "RECURRENTE"
-      ? { dayOfWeek: Number(dayOfWeek), timeSlotId }
-      : { date, timeSlotId };
-  }, [readyToVerify, type, dayOfWeek, date, timeSlotId]);
+    if (type === "RECURRENTE") {
+      if (!activeSemester) return null;
+      const occurrence = nextOccurrenceISO(
+        Number(dayOfWeek),
+        activeSemester.startDate.slice(0, 10),
+        activeSemester.endDate.slice(0, 10),
+      );
+      return occurrence ? { date: occurrence, timeSlotId } : null;
+    }
+    return { date, timeSlotId };
+  }, [activeSemester, readyToVerify, type, dayOfWeek, date, timeSlotId]);
 
   const stateQuery = useClassroomStateQuery(readyToVerify ? classroomId : null, verifyInput ?? {});
   const stateResult = readyToVerify && !stateQuery.isLoading ? stateQuery.data : undefined;
   const meta = stateResult ? AVAILABILITY_STATE_META[stateResult.state] : null;
   const isFree = stateResult?.state === "LIBRE";
 
+  const validateSelection = (): string | null => {
+    if (!activeSemester) return null;
+    if (type === "RECURRENTE") {
+      const dow = Number(dayOfWeek);
+      if (!(dow >= 1 && dow <= 6)) {
+        return "La reserva recurrente requiere un día de la semana (sin fecha).";
+      }
+      if (!activeSemester.workingDays.includes(dow)) {
+        return "El día elegido no es hábil para el semestre activo.";
+      }
+      return null;
+    }
+    if (!date) {
+      return "La reserva puntual requiere una fecha específica (sin día de semana).";
+    }
+    if (date < todayISO()) {
+      return "La fecha no puede ser anterior a hoy.";
+    }
+    const start = activeSemester.startDate.slice(0, 10);
+    const end = activeSemester.endDate.slice(0, 10);
+    if (date < start || date > end) {
+      return "La fecha está fuera del rango del semestre activo.";
+    }
+    return null;
+  };
+
   const submit = async () => {
-    if (!activeSemester || !isFree || !verifyInput) return;
+    if (!activeSemester || !verifyInput) return;
+    const problem = validateSelection();
+    if (problem) {
+      toast.error(problem);
+      return;
+    }
+    if (!isFree) {
+      toast.error("La celda no está libre; revise la verificación de disponibilidad.");
+      return;
+    }
     try {
       await create.mutateAsync({
         classroomId,
@@ -95,7 +141,7 @@ export default function NewReservationModule({
       toast.success("Reserva registrada. Queda PENDIENTE de confirmación.");
       setNote("");
     } catch (err) {
-      toast.error(apiErrorToMessage(err));
+      toast.error(reservationErrorToMessage(err));
     }
   };
 
@@ -170,11 +216,11 @@ export default function NewReservationModule({
               hint={
                 currentSlot
                   ? `Bloque actual: ${currentSlot.label}`
-                  : "Fuera del horario de bloques; seleccione uno manualmente."
+                  : "Fuera del horario de clases. Seleccione un bloque manualmente."
               }
             >
               <SelectInput
-                options={(slots.data ?? []).map((s) => ({
+                options={slots.map((s) => ({
                   value: s.id,
                   label: `${s.label} (${s.startTime.slice(0, 5)}–${s.endTime.slice(0, 5)})`,
                 }))}
@@ -198,6 +244,10 @@ export default function NewReservationModule({
               <p className="rounded-md bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
                 Complete aula, {type === "RECURRENTE" ? "día" : "fecha"} y bloque para verificar la
                 disponibilidad.
+              </p>
+            ) : !verifyInput ? (
+              <p className="rounded-md bg-rose-50 px-3 py-2 text-[11px] text-rose-700">
+                El día elegido no tiene ninguna ocurrencia dentro del rango del semestre activo.
               </p>
             ) : verifyInput && stateQuery.isFetching ? (
               <p className="animate-pulse rounded-md bg-sky-50 px-3 py-2 text-[11px] text-sky-700">
@@ -264,4 +314,22 @@ export default function NewReservationModule({
       )}
     </div>
   );
+}
+
+function nextOccurrenceISO(
+  dayOfWeek: number,
+  semesterStart: string,
+  semesterEnd: string,
+): string | null {
+  const today = todayISO();
+  const cursorISO = today > semesterStart ? today : semesterStart;
+  const cursor = new Date(`${cursorISO}T00:00:00Z`);
+  for (let offset = 0; offset < 7; offset += 1) {
+    const candidate = new Date(cursor.getTime() + offset * 86_400_000);
+    if (candidate.getUTCDay() === dayOfWeek) {
+      const iso = candidate.toISOString().slice(0, 10);
+      return iso <= semesterEnd ? iso : null;
+    }
+  }
+  return null;
 }

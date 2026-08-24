@@ -3,12 +3,11 @@ import {
   DoorOpen,
   ExternalLink,
   LayoutDashboard,
-  Users,
+  PieChart,
   Wrench,
   type LucideIcon,
 } from "lucide-react";
 import { useStatsQuery } from "../../../lib/queries/dashboard";
-import { useUsersQuery } from "../../../lib/queries/users";
 import { EmptyBlock } from "../../ui/States";
 import { useWindowManager } from "../../system/WindowManager";
 import type { ModuleProps } from "../../system/moduleTypes";
@@ -16,6 +15,7 @@ import type { ModuleProps } from "../../system/moduleTypes";
 interface KpiDef {
   label: string;
   value: number | undefined;
+  suffix?: string;
   icon: LucideIcon;
   accent: string;
   target: string;
@@ -32,12 +32,19 @@ const QUICK_LINKS = [
 export default function DashboardAdmin(_props: ModuleProps) {
   const wm = useWindowManager();
   const stats = useStatsQuery();
-  const usersQuery = useUsersQuery({ page: 1, pageSize: 1 });
 
   const pendingCount =
     stats.data?.reservationsByStatus.find((r) => r.status === "PENDIENTE")?.count ?? 0;
   const confirmedCount =
     stats.data?.reservationsByStatus.find((r) => r.status === "CONFIRMADA")?.count ?? 0;
+
+  const occupancyRows = stats.data?.occupancyByClassroom ?? [];
+  const avgOccupancy =
+    occupancyRows.length > 0
+      ? Math.round(
+          (occupancyRows.reduce((acc, row) => acc + row.percentage, 0) / occupancyRows.length) * 10,
+        ) / 10
+      : undefined;
 
   const kpis: KpiDef[] = [
     {
@@ -65,12 +72,13 @@ export default function DashboardAdmin(_props: ModuleProps) {
       hint: "Abrir módulo de aulas y mantenimientos",
     },
     {
-      label: "Usuarios registrados",
-      value: usersQuery.data?.meta.total,
-      icon: Users,
+      label: "Ocupación promedio",
+      value: avgOccupancy,
+      suffix: "%",
+      icon: PieChart,
       accent: "bg-violet-100 text-violet-700",
-      target: "usuarios",
-      hint: "Abrir gestión de usuarios",
+      target: "reportes",
+      hint: "Abrir consultas y reportes",
     },
   ];
 
@@ -101,6 +109,7 @@ export default function DashboardAdmin(_props: ModuleProps) {
               </span>
               <span className="text-2xl leading-none font-bold text-slate-800 tabular-nums">
                 {kpi.value === undefined ? "—" : kpi.value}
+                {kpi.value !== undefined && kpi.suffix ? kpi.suffix : ""}
               </span>
               <span className="text-[11px] leading-tight font-semibold text-slate-500">
                 {kpi.label}

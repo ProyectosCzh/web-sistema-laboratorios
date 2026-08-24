@@ -6,7 +6,7 @@ import {
   RESERVATION_STATUS_TONES,
   RESERVATION_TYPE_LABELS,
 } from "../../../lib/constants";
-import { apiErrorToMessage } from "../../../lib/errors";
+import { apiErrorToMessage, isApiError } from "../../../lib/errors";
 import { fmtDate, fmtDateTime, slotLabel } from "../../../lib/format";
 import { useClassroomListForPick } from "../../../lib/queries/classrooms";
 import {
@@ -14,6 +14,7 @@ import {
   useReservationsQuery,
 } from "../../../lib/queries/reservations";
 import { useActiveSemester, useSemestersQuery } from "../../../lib/queries/semesters";
+import { useTimeSlotsQuery } from "../../../lib/queries/timeSlots";
 import type {
   Reservation,
   ReservationStatus,
@@ -37,6 +38,21 @@ interface EditState {
   dayOfWeek: string;
   date: string;
   note: string;
+}
+
+const RESERVATION_ACTION_MESSAGES: Record<string, string> = {
+  RESERVATION_CONFLICT: "Conflicto de horario: la celda ya está ocupada por otra actividad.",
+  INVALID_RESERVATION_TRANSITION: "La reserva no admite ese cambio de estado.",
+  RESERVATION_NOT_EDITABLE: "La reserva ya no se puede modificar.",
+  DATE_OUTSIDE_SEMESTER: "La fecha está fuera del rango del semestre.",
+};
+
+export function reservationErrorToMessage(err: unknown): string {
+  if (isApiError(err)) {
+    const specific = RESERVATION_ACTION_MESSAGES[err.code];
+    if (specific) return specific;
+  }
+  return apiErrorToMessage(err);
 }
 
 export function ReservationsPanel({ showNewButton = false }: { showNewButton?: boolean }) {
@@ -68,6 +84,11 @@ export function ReservationsPanel({ showNewButton = false }: { showNewButton?: b
 
   const classrooms = useClassroomListForPick(true);
   const semesters = useSemestersQuery({ page: 1, pageSize: 50 });
+  const timeSlotsQuery = useTimeSlotsQuery(true);
+  const slotOptions = useMemo(
+    () => [...(timeSlotsQuery.data ?? [])].sort((a, b) => a.order - b.order),
+    [timeSlotsQuery.data],
+  );
   const { setStatus, update, remove } = useReservationMutations();
 
   const [editState, setEditState] = useState<EditState | null>(null);
@@ -77,7 +98,7 @@ export function ReservationsPanel({ showNewButton = false }: { showNewButton?: b
       await setStatus.mutateAsync({ id: r.id, status: "CONFIRMADA" });
       toast.success("Reserva confirmada.");
     } catch (err) {
-      toast.error(apiErrorToMessage(err));
+      toast.error(reservationErrorToMessage(err));
     }
   };
 
@@ -96,7 +117,7 @@ export function ReservationsPanel({ showNewButton = false }: { showNewButton?: b
       await setStatus.mutateAsync({ id: r.id, status: "CANCELADA" });
       toast.success("Reserva cancelada.");
     } catch (err) {
-      toast.error(apiErrorToMessage(err));
+      toast.error(reservationErrorToMessage(err));
     }
   };
 
@@ -112,7 +133,7 @@ export function ReservationsPanel({ showNewButton = false }: { showNewButton?: b
       await remove.mutateAsync(r.id);
       toast.success("Registro eliminado.");
     } catch (err) {
-      toast.error(apiErrorToMessage(err));
+      toast.error(reservationErrorToMessage(err));
     }
   };
 
@@ -135,6 +156,14 @@ export function ReservationsPanel({ showNewButton = false }: { showNewButton?: b
 
   const submitEdit = async () => {
     if (!editState) return;
+    if (editState.type === "RECURRENTE" && !(Number(editState.dayOfWeek) >= 1 && Number(editState.dayOfWeek) <= 6)) {
+      toast.error("Las reservas semanales requieren un día de la semana.");
+      return;
+    }
+    if (editState.type === "PUNTUAL" && editState.date === "") {
+      toast.error("Las reservas puntuales requieren una fecha específica.");
+      return;
+    }
     try {
       await update.mutateAsync({
         id: editState.id,
@@ -150,7 +179,7 @@ export function ReservationsPanel({ showNewButton = false }: { showNewButton?: b
       toast.success("Reserva actualizada.");
       setEditState(null);
     } catch (err) {
-      toast.error(apiErrorToMessage(err));
+      toast.error(reservationErrorToMessage(err));
     }
   };
 
@@ -442,7 +471,7 @@ export function ReservationsPanel({ showNewButton = false }: { showNewButton?: b
               hint="Si necesita un bloque que no aparece, ábralo desde la Tabla Semanal."
             >
               <SelectInput
-                options={uniqueSlots(query.data?.data ?? []).map((ts) => ({
+                options={slotOptions.map((ts) => ({
                   value: ts.id,
                   label: `${ts.label} (${ts.startTime.slice(0, 5)}–${ts.endTime.slice(0, 5)})`,
                 }))}
@@ -462,10 +491,4 @@ export function ReservationsPanel({ showNewButton = false }: { showNewButton?: b
       </Modal>
     </div>
   );
-}
-
-function uniqueSlots(reservations: Reservation[]) {
-  const map = new Map<string, Reservation["timeSlot"]>();
-  for (const r of reservations) map.set(r.timeSlot.id, r.timeSlot);
-  return [...map.values()].sort((a, b) => a.order - b.order);
 }

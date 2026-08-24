@@ -59,6 +59,14 @@ export async function unwrap<T>(promise: Promise<AxiosResponse<{ data: T }>>): P
   return res.data.data;
 }
 
+export async function unwrapWrapped<K extends string, T>(
+  promise: Promise<AxiosResponse<{ data: Record<K, T> }>>,
+  key: K,
+): Promise<T> {
+  const res = await promise;
+  return res.data.data[key];
+}
+
 export async function unwrapPage<T>(
   promise: Promise<AxiosResponse<Paginated<T>>>,
 ): Promise<Paginated<T>> {

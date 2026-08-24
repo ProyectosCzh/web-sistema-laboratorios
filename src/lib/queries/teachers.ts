@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { http, unwrap, unwrapPage, type PageParams } from "../api";
+import { http, unwrapPage, unwrapWrapped, type PageParams } from "../api";
 import type { Paginated, Teacher } from "../types";
 
 export interface TeachersParams extends PageParams {}
@@ -16,14 +16,25 @@ export interface TeacherWriteInput {
 }
 
 export async function createTeacher(input: TeacherWriteInput): Promise<Teacher> {
-  return unwrap(http.post<{ data: Teacher }>("/teachers", input));
+  return unwrapWrapped(
+    http.post<{ data: { teacher: Teacher } }>("/teachers", input),
+    "teacher",
+  );
 }
 
 export async function updateTeacher(
   id: string,
   input: Partial<TeacherWriteInput>,
 ): Promise<Teacher> {
-  return unwrap(http.patch<{ data: Teacher }>(`/teachers/${id}`, input));
+  const payload: Partial<TeacherWriteInput> = {};
+  if (typeof input.code === "string" && input.code !== "") payload.code = input.code;
+  if (input.name !== undefined) payload.name = input.name;
+  if (input.email !== undefined) payload.email = input.email;
+  if (input.active !== undefined) payload.active = input.active;
+  return unwrapWrapped(
+    http.patch<{ data: { teacher: Teacher } }>(`/teachers/${id}`, payload),
+    "teacher",
+  );
 }
 
 export async function deleteTeacher(id: string): Promise<void> {

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { http, unwrap, unwrapPage } from "../api";
+import { http, unwrapPage, unwrapWrapped } from "../api";
 import type { MaintenanceLog, MaintenanceStatus, Paginated } from "../types";
 
 export interface MaintenanceFilters {
@@ -23,14 +23,20 @@ export async function createMaintenanceLog(input: {
   date: string;
   reason: string;
 }): Promise<MaintenanceLog> {
-  return unwrap(http.post<{ data: MaintenanceLog }>("/maintenance", input));
+  return unwrapWrapped(
+    http.post<{ data: { maintenance: MaintenanceLog } }>("/maintenance", input),
+    "maintenance",
+  );
 }
 
 export async function updateMaintenanceStatus(
   id: string,
   status: MaintenanceStatus,
 ): Promise<MaintenanceLog> {
-  return unwrap(http.patch<{ data: MaintenanceLog }>(`/maintenance/${id}`, { status }));
+  return unwrapWrapped(
+    http.patch<{ data: { maintenance: MaintenanceLog } }>(`/maintenance/${id}`, { status }),
+    "maintenance",
+  );
 }
 
 export async function deleteMaintenanceLog(id: string): Promise<void> {

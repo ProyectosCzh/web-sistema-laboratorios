@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { http, unwrap } from "../api";
+import { http, unwrap, unwrapWrapped } from "../api";
 import type { TimeSlot } from "../types";
 
 export async function fetchTimeSlots(): Promise<TimeSlot[]> {
@@ -14,14 +14,20 @@ export interface TimeSlotWriteInput {
 }
 
 export async function createTimeSlot(input: TimeSlotWriteInput): Promise<TimeSlot> {
-  return unwrap(http.post<{ data: TimeSlot }>("/time-slots", input));
+  return unwrapWrapped(
+    http.post<{ data: { timeSlot: TimeSlot } }>("/time-slots", input),
+    "timeSlot",
+  );
 }
 
 export async function updateTimeSlot(
   id: string,
   input: Partial<TimeSlotWriteInput>,
 ): Promise<TimeSlot> {
-  return unwrap(http.patch<{ data: TimeSlot }>(`/time-slots/${id}`, input));
+  return unwrapWrapped(
+    http.patch<{ data: { timeSlot: TimeSlot } }>(`/time-slots/${id}`, input),
+    "timeSlot",
+  );
 }
 
 export async function deleteTimeSlot(id: string): Promise<void> {

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { http, unwrap, unwrapPage, type PageParams } from "../api";
+import { http, unwrapPage, unwrapWrapped, type PageParams } from "../api";
 import type { Paginated, Semester } from "../types";
 
 export interface SemestersParams extends PageParams {}
@@ -16,18 +16,24 @@ export interface SemesterWriteInput {
 }
 
 export async function createSemester(input: SemesterWriteInput): Promise<Semester> {
-  return unwrap(http.post<{ data: Semester }>("/semesters", input));
+  return unwrapWrapped(
+    http.post<{ data: { semester: Semester } }>("/semesters", input),
+    "semester",
+  );
 }
 
 export async function updateSemester(
   id: string,
   input: Partial<SemesterWriteInput>,
 ): Promise<Semester> {
-  return unwrap(http.patch<{ data: Semester }>(`/semesters/${id}`, input));
+  return unwrapWrapped(
+    http.patch<{ data: { semester: Semester } }>(`/semesters/${id}`, input),
+    "semester",
+  );
 }
 
-export async function activateSemester(id: string): Promise<void> {
-  await http.post(`/semesters/${id}/activate`);
+export async function activateSemester(id: string): Promise<Semester> {
+  return unwrapWrapped(http.post<{ data: { semester: Semester } }>(`/semesters/${id}/activate`), "semester");
 }
 
 export async function deleteSemester(id: string): Promise<void> {

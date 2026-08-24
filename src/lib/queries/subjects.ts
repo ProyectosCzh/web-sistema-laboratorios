@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { http, unwrap, unwrapPage, type PageParams } from "../api";
+import { http, unwrapPage, unwrapWrapped, type PageParams } from "../api";
 import type { Paginated, Subject } from "../types";
 
 export interface SubjectsParams extends PageParams {}
@@ -15,14 +15,24 @@ export interface SubjectWriteInput {
 }
 
 export async function createSubject(input: SubjectWriteInput): Promise<Subject> {
-  return unwrap(http.post<{ data: Subject }>("/subjects", input));
+  return unwrapWrapped(
+    http.post<{ data: { subject: Subject } }>("/subjects", input),
+    "subject",
+  );
 }
 
 export async function updateSubject(
   id: string,
   input: Partial<SubjectWriteInput>,
 ): Promise<Subject> {
-  return unwrap(http.patch<{ data: Subject }>(`/subjects/${id}`, input));
+  const payload: Partial<SubjectWriteInput> = {};
+  if (typeof input.code === "string" && input.code !== "") payload.code = input.code;
+  if (input.name !== undefined) payload.name = input.name;
+  if (input.active !== undefined) payload.active = input.active;
+  return unwrapWrapped(
+    http.patch<{ data: { subject: Subject } }>(`/subjects/${id}`, payload),
+    "subject",
+  );
 }
 
 export async function deleteSubject(id: string): Promise<void> {

@@ -1,6 +1,6 @@
 import type { ModuleProps } from "../../system/moduleTypes";
 import { StickyNote, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { apiErrorToMessage } from "../../../lib/errors";
 import { fmtDate } from "../../../lib/format";
 import { useClassroomListForPick } from "../../../lib/queries/classrooms";
@@ -27,6 +27,20 @@ export function AnnotationsList({ pageSize = 10 }: { pageSize?: number }) {
   const [to, setTo] = useState("");
   const [page, setPage] = useState(1);
 
+  const classrooms = useClassroomListForPick(true);
+  const classroomById = useMemo(() => {
+    const map = new Map<string, { code: string; name: string }>();
+    for (const c of classrooms.data?.data ?? []) map.set(c.id, c);
+    return map;
+  }, [classrooms.data]);
+
+  useEffect(() => {
+    if (!classroomId) {
+      const first = (classrooms.data?.data ?? []).find((c) => c.status === "ACTIVA");
+      if (first) setClassroomId(first.id);
+    }
+  }, [classrooms.data, classroomId]);
+
   const query = useAnnotationsQuery({
     page,
     pageSize,
@@ -34,7 +48,6 @@ export function AnnotationsList({ pageSize = 10 }: { pageSize?: number }) {
     from: from || undefined,
     to: to || undefined,
   });
-  const classrooms = useClassroomListForPick(true);
   const { remove } = useAnnotationMutations();
 
   const removeOne = async (a: Annotation) => {
@@ -62,11 +75,17 @@ export function AnnotationsList({ pageSize = 10 }: { pageSize?: number }) {
     {
       key: "classroom",
       header: "Aula",
-      render: (a) => (
-        <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-bold text-slate-700">
-          {a.classroom?.code ?? "—"}
-        </span>
-      ),
+      render: (a) => {
+        const found = classroomById.get(a.classroomId);
+        return (
+          <span
+            title={found ? `${found.code} · ${found.name}` : a.classroomId}
+            className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-bold text-slate-700"
+          >
+            {found?.code ?? a.classroomId}
+          </span>
+        );
+      },
     },
     {
       key: "user",
@@ -113,7 +132,7 @@ export function AnnotationsList({ pageSize = 10 }: { pageSize?: number }) {
               value: c.id,
               label: `${c.code} · ${c.name}`,
             }))}
-            placeholder="Todas las aulas"
+            placeholder="Seleccione aula…"
             value={classroomId}
             onChange={(e) => {
               setClassroomId(e.target.value);
@@ -187,14 +206,18 @@ export default function AnnotationsModule(_props: ModuleProps) {
   }, [classrooms.data, classroomId]);
 
   const submit = async () => {
+    const trimmed = content.trim();
     const next = {
       classroomId: required(classroomId),
-      content: required(content),
+      content:
+        trimmed.length < 1 || trimmed.length > 1000
+          ? "La observación debe tener entre 1 y 1000 caracteres."
+          : null,
     };
     setErrors(next);
     if (Object.values(next).some((v) => v)) return;
     try {
-      await create.mutateAsync({ classroomId, content: content.trim() });
+      await create.mutateAsync({ classroomId, content: trimmed });
       toast.success("Anotación guardada en el historial de uso.");
       setContent("");
       setSavedAt(new Date().toLocaleTimeString("es-ES"));
@@ -227,15 +250,19 @@ export default function AnnotationsModule(_props: ModuleProps) {
             label="Observación"
             error={errors.content ?? null}
             required
-            hint="Describa el uso o la situación observada. Ej.: “Se utilizó el proyector durante la clase de redes”."
+            hint="Describa el uso o la situación observada (1 a 1000 caracteres). Ej.: “Se utilizó el proyector durante la clase de redes”."
           >
             <textarea
               rows={4}
+              maxLength={1000}
               className="input-base resize-none"
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="Escriba aquí su observación…"
             />
+            <p className="mt-1 text-right text-[10px] text-slate-400 tabular-nums">
+              {content.length}/1000
+            </p>
           </Field>
           <div className="flex items-center justify-between gap-2">
             <p className="text-[11px] text-slate-400">

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { http, unwrap, unwrapPage, type PageParams } from "../api";
+import { http, unwrap, unwrapPage, unwrapWrapped, type PageParams } from "../api";
 import type {
   Classroom,
   ClassroomStateResult,
@@ -21,15 +21,46 @@ export interface ClassroomWriteInput {
   status?: Classroom["status"];
 }
 
+interface ClassroomPayload {
+  code?: string;
+  name?: string;
+  type?: Classroom["type"];
+  status?: Classroom["status"];
+  capacity?: number;
+  location?: string | null;
+}
+
+function classroomPayload(
+  input: Partial<ClassroomWriteInput>,
+  includeStatus: boolean,
+): ClassroomPayload {
+  const payload: ClassroomPayload = {};
+  if (input.code !== undefined) payload.code = input.code;
+  if (input.name !== undefined) payload.name = input.name;
+  if (input.type !== undefined) payload.type = input.type;
+  if (includeStatus && input.status !== undefined) payload.status = input.status;
+  if (typeof input.capacity === "number") payload.capacity = input.capacity;
+  if (input.location !== undefined) {
+    payload.location = input.location === "" ? null : input.location;
+  }
+  return payload;
+}
+
 export async function createClassroom(input: ClassroomWriteInput): Promise<Classroom> {
-  return unwrap(http.post<{ data: Classroom }>("/classrooms", input));
+  return unwrapWrapped(
+    http.post<{ data: { classroom: Classroom } }>("/classrooms", classroomPayload(input, false)),
+    "classroom",
+  );
 }
 
 export async function updateClassroom(
   id: string,
   input: Partial<ClassroomWriteInput>,
 ): Promise<Classroom> {
-  return unwrap(http.patch<{ data: Classroom }>(`/classrooms/${id}`, input));
+  return unwrapWrapped(
+    http.patch<{ data: { classroom: Classroom } }>(`/classrooms/${id}`, classroomPayload(input, true)),
+    "classroom",
+  );
 }
 
 export async function deleteClassroom(id: string): Promise<void> {
@@ -66,7 +97,7 @@ export function useClassroomsQuery(params: ClassroomsParams, enabled = true) {
 export function useClassroomListForPick(enabled = true) {
   return useQuery({
     queryKey: ["classrooms", "pick"],
-    queryFn: () => fetchClassrooms({ page: 1, pageSize: 200 }),
+    queryFn: () => fetchClassrooms({ page: 1, pageSize: 100 }),
     enabled,
     staleTime: 60 * 1000,
   });

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { http, unwrap } from "../api";
+import { http, unwrap, unwrapWrapped } from "../api";
 import type { Schedule } from "../types";
 
 export interface SchedulesParams {
@@ -21,15 +21,47 @@ export interface ScheduleWriteInput {
   note?: string | null;
 }
 
+interface SchedulePayload {
+  classroomId?: string;
+  semesterId?: string;
+  subjectId?: string;
+  teacherId?: string | null;
+  dayOfWeek?: number;
+  timeSlotId?: string;
+  note?: string | null;
+}
+
+function schedulePayload(input: Partial<ScheduleWriteInput>): SchedulePayload {
+  const payload: SchedulePayload = {};
+  if (input.classroomId !== undefined) payload.classroomId = input.classroomId;
+  if (input.semesterId !== undefined) payload.semesterId = input.semesterId;
+  if (input.subjectId !== undefined) payload.subjectId = input.subjectId;
+  if (input.dayOfWeek !== undefined) payload.dayOfWeek = input.dayOfWeek;
+  if (input.timeSlotId !== undefined) payload.timeSlotId = input.timeSlotId;
+  if (input.teacherId !== undefined) {
+    payload.teacherId = input.teacherId === "" ? null : input.teacherId;
+  }
+  if (input.note !== undefined) {
+    payload.note = input.note === "" ? null : input.note;
+  }
+  return payload;
+}
+
 export async function createSchedule(input: ScheduleWriteInput): Promise<Schedule> {
-  return unwrap(http.post<{ data: Schedule }>("/schedules", input));
+  return unwrapWrapped(
+    http.post<{ data: { schedule: Schedule } }>("/schedules", schedulePayload(input)),
+    "schedule",
+  );
 }
 
 export async function updateSchedule(
   id: string,
   input: Partial<ScheduleWriteInput>,
 ): Promise<Schedule> {
-  return unwrap(http.patch<{ data: Schedule }>(`/schedules/${id}`, input));
+  return unwrapWrapped(
+    http.patch<{ data: { schedule: Schedule } }>(`/schedules/${id}`, schedulePayload(input)),
+    "schedule",
+  );
 }
 
 export async function deleteSchedule(id: string): Promise<void> {

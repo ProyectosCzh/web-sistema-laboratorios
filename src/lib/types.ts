@@ -52,7 +52,7 @@ export interface TimeSlot {
   order: number;
 }
 
-export interface Semester extends EntityMeta {
+export interface Semester {
   id: string;
   name: string;
   startDate: string;

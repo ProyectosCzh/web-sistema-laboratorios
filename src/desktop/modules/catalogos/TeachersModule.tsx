@@ -26,7 +26,7 @@ export default function TeachersModule(_props: ModuleProps) {
   const toast = useToast();
   const confirm = useConfirm();
 
-  const query = useTeachersQuery({ page: 1, pageSize: 200 });
+  const query = useTeachersQuery({ page: 1, pageSize: 100 });
   const { create, update, remove } = useTeacherMutations();
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -57,17 +57,17 @@ export default function TeachersModule(_props: ModuleProps) {
     };
     setErrors(next);
     if (Object.values(next).some((v) => v)) return;
-    const input = {
-      code: form.code.trim().toUpperCase(),
-      name: form.name.trim(),
-      email: form.email.trim() === "" ? null : form.email.trim(),
-    };
+    const code = form.code.trim().toUpperCase();
+    const name = form.name.trim();
+    const email = form.email.trim() === "" ? null : form.email.trim();
     try {
       if (editing) {
+        const input: Partial<TeacherWriteInput> = { name, email };
+        if (code !== "") input.code = code;
         await update.mutateAsync({ id: editing.id, input });
         toast.success("Docente actualizado.");
       } else {
-        await create.mutateAsync(input as TeacherWriteInput);
+        await create.mutateAsync({ code, name, email });
         toast.success("Docente creado.");
       }
       setModalOpen(false);

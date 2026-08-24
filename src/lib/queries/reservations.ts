@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { http, unwrap, unwrapPage, type PageParams } from "../api";
+import { http, unwrapPage, unwrapWrapped, type PageParams } from "../api";
 import type {
   Paginated,
   Reservation,
@@ -34,7 +34,13 @@ export interface ReservationCreateInput {
 }
 
 export async function createReservation(input: ReservationCreateInput): Promise<Reservation> {
-  return unwrap(http.post<{ data: Reservation }>("/reservations", input));
+  const payload: ReservationCreateInput = { ...input };
+  if (payload.type === "RECURRENTE") delete payload.date;
+  if (payload.type === "PUNTUAL") delete payload.dayOfWeek;
+  return unwrapWrapped(
+    http.post<{ data: { reservation: Reservation } }>("/reservations", payload),
+    "reservation",
+  );
 }
 
 export interface ReservationUpdateInput {
@@ -49,15 +55,21 @@ export async function updateReservation(
   id: string,
   input: ReservationUpdateInput,
 ): Promise<Reservation> {
-  return unwrap(http.patch<{ data: Reservation }>(`/reservations/${id}`, input));
+  const payload: ReservationUpdateInput = { ...input };
+  if (payload.date !== undefined) delete payload.dayOfWeek;
+  return unwrapWrapped(
+    http.patch<{ data: { reservation: Reservation } }>(`/reservations/${id}`, payload),
+    "reservation",
+  );
 }
 
 export async function updateReservationStatus(
   id: string,
   status: Exclude<ReservationStatus, "PENDIENTE">,
 ): Promise<Reservation> {
-  return unwrap(
-    http.patch<{ data: Reservation }>(`/reservations/${id}/status`, { status }),
+  return unwrapWrapped(
+    http.patch<{ data: { reservation: Reservation } }>(`/reservations/${id}/status`, { status }),
+    "reservation",
   );
 }
 

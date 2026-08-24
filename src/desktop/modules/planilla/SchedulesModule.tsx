@@ -1,6 +1,6 @@
 import { CalendarClock, Info, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { apiErrorToMessage } from "../../../lib/errors";
+import { apiErrorToMessage, isApiError } from "../../../lib/errors";
 import { slotLabel } from "../../../lib/format";
 import { useClassroomListForPick } from "../../../lib/queries/classrooms";
 import {
@@ -12,8 +12,14 @@ import { useActiveSemester, useSemestersQuery } from "../../../lib/queries/semes
 import { useSubjectsQuery } from "../../../lib/queries/subjects";
 import { useTeachersQuery } from "../../../lib/queries/teachers";
 import { useTimeSlotsQuery } from "../../../lib/queries/timeSlots";
-import type { Schedule } from "../../../lib/types";
-import { parseCellKey, cellKey, vmFromSchedule, WeeklyGrid } from "../../shared/WeeklyGrid";
+import type { Schedule, TimeSlot } from "../../../lib/types";
+import {
+  parseCellKey,
+  cellKey,
+  vmFromSchedule,
+  WeeklyGrid,
+  type GridEntryVM,
+} from "../../shared/WeeklyGrid";
 import { useToast } from "../../system/ToastProvider";
 import { Field, SelectInput, TextArea } from "../../ui/Field";
 import { Modal } from "../../ui/Modal";
@@ -25,6 +31,25 @@ interface BlockFormState {
 }
 
 const EMPTY_BLOCK: BlockFormState = { subjectId: "", teacherId: "", note: "" };
+
+const BLOCK_ERROR_MESSAGES: Record<string, string> = {
+  RESERVATION_CONFLICT: "El aula ya tiene un bloque asignado en ese día y turno.",
+  TEACHER_CONFLICT: "El docente ya tiene un bloque en ese día y turno en otra aula.",
+  CLASSROOM_UNAVAILABLE: "El aula no está disponible para asignar bloques.",
+  NON_WORKING_DAY: "El día elegido no es hábil para el semestre seleccionado.",
+};
+
+function blockErrorToMessage(err: unknown): string {
+  if (isApiError(err)) {
+    const specific = BLOCK_ERROR_MESSAGES[err.code];
+    if (specific) return specific;
+  }
+  return apiErrorToMessage(err);
+}
+
+function isScheduleRaw(raw: unknown): raw is Schedule {
+  return typeof raw === "object" && raw !== null && "id" in raw && "subjectId" in raw;
+}
 
 export default function SchedulesModule({ params }: { params: Record<string, unknown> }) {
   const toast = useToast();
@@ -46,8 +71,8 @@ export default function SchedulesModule({ params }: { params: Record<string, unk
     Boolean(classroomId && semesterId),
   );
 
-  const subjects = useSubjectsQuery({ page: 1, pageSize: 200 }, true);
-  const teachers = useTeachersQuery({ page: 1, pageSize: 200 }, true);
+  const subjects = useSubjectsQuery({ page: 1, pageSize: 100 }, true);
+  const teachers = useTeachersQuery({ page: 1, pageSize: 100 }, true);
 
   const activeSubjects = (subjects.data?.data ?? []).filter((s) => s.active);
   const activeTeachers = (teachers.data?.data ?? []).filter((t) => t.active);
@@ -78,14 +103,13 @@ export default function SchedulesModule({ params }: { params: Record<string, unk
     return [...(allSlots.data ?? [])].sort((a, b) => a.order - b.order);
   }, [allSlots.data]);
 
-  const handleCellClick = (key: string, entry: unknown) => {
+  const handleCellClick = (key: string, entry: GridEntryVM | null) => {
     if (!classroomId || !semesterId) return;
-    if (entry && typeof entry === "object" && "raw" in entry) {
-      const raw = (entry as { raw?: unknown }).raw;
-      if (raw && typeof raw === "object" && "subject" in raw) {
-        setEditTarget(raw as Schedule);
-        return;
-      }
+    if (entry?.kind === "SCHEDULE" && isScheduleRaw(entry.raw)) {
+      setBlockForm(EMPTY_BLOCK);
+      setFormError(null);
+      setEditTarget(entry.raw);
+      return;
     }
     const { day, slotId } = parseCellKey(key);
     setBlockForm(EMPTY_BLOCK);
@@ -113,7 +137,7 @@ export default function SchedulesModule({ params }: { params: Record<string, unk
       toast.success("Bloque asignado a la planilla.");
       setCreating(null);
     } catch (err) {
-      toast.error(apiErrorToMessage(err));
+      toast.error(blockErrorToMessage(err));
     }
   };
 
@@ -132,7 +156,7 @@ export default function SchedulesModule({ params }: { params: Record<string, unk
       toast.success("Bloque actualizado.");
       setEditTarget(null);
     } catch (err) {
-      toast.error(apiErrorToMessage(err));
+      toast.error(blockErrorToMessage(err));
     }
   };
 
@@ -143,7 +167,7 @@ export default function SchedulesModule({ params }: { params: Record<string, unk
       toast.success("Bloque eliminado de la planilla.");
       setEditTarget(null);
     } catch (err) {
-      toast.error(apiErrorToMessage(err));
+      toast.error(blockErrorToMessage(err));
     }
   };
 
@@ -246,7 +270,7 @@ export default function SchedulesModule({ params }: { params: Record<string, unk
           <p className="rounded-md bg-sky-50 px-3 py-2 text-[11px] text-sky-800">
             Aula <strong>{selectedClassroom?.code}</strong> ·{" "}
             {creating ? DAY_LABEL(creating.day) : ""} ·{" "}
-            {creating ? slotLabelText(creating.timeSlotId, schedulesQuery.data ?? []) : ""}
+            {creating ? slotLabelText(creating.timeSlotId, gridTimeSlots) : ""}
           </p>
           <Field label="Materia" required>
             <SelectInput
@@ -347,7 +371,7 @@ function DAY_LABEL(day: number): string {
   return ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"][day] ?? `Día ${day}`;
 }
 
-function slotLabelText(timeSlotId: string, schedules: Schedule[]): string {
-  const found = schedules.find((s) => s.timeSlotId === timeSlotId);
-  return found ? slotLabel(found.timeSlot) : timeSlotId;
+function slotLabelText(timeSlotId: string, slots: TimeSlot[]): string {
+  const found = slots.find((s) => s.id === timeSlotId);
+  return found ? slotLabel(found) : timeSlotId;
 }

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { http, unwrap, unwrapPage, type PageParams } from "../api";
+import { http, unwrapPage, unwrapWrapped, type PageParams } from "../api";
 import type { Paginated, User, UserRole } from "../types";
 
 export interface UsersParams extends PageParams {}
@@ -16,12 +16,32 @@ export interface UserWriteInput {
   active?: boolean;
 }
 
+function userPayload(input: Partial<UserWriteInput>): Partial<UserWriteInput> {
+  const payload: Partial<UserWriteInput> = {};
+  if (input.name !== undefined) payload.name = input.name;
+  if (input.role !== undefined) payload.role = input.role;
+  if (input.active !== undefined) payload.active = input.active;
+  if (input.email !== undefined && input.email.trim() !== "") {
+    payload.email = input.email.trim();
+  }
+  if (typeof input.password === "string" && input.password !== "") {
+    payload.password = input.password;
+  }
+  return payload;
+}
+
 export async function createUser(input: UserWriteInput): Promise<User> {
-  return unwrap(http.post<{ data: User }>("/users", input));
+  return unwrapWrapped(
+    http.post<{ data: { user: User } }>("/users", userPayload(input)),
+    "user",
+  );
 }
 
 export async function updateUser(id: string, input: Partial<UserWriteInput>): Promise<User> {
-  return unwrap(http.patch<{ data: User }>(`/users/${id}`, input));
+  return unwrapWrapped(
+    http.patch<{ data: { user: User } }>(`/users/${id}`, userPayload(input)),
+    "user",
+  );
 }
 
 export async function deleteUser(id: string): Promise<void> {

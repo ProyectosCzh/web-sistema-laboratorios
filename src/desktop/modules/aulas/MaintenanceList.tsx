@@ -10,6 +10,7 @@ import {
 import { useClassroomListForPick } from "../../../lib/queries/classrooms";
 import type { MaintenanceLog, MaintenanceStatus } from "../../../lib/types";
 import { requiredText } from "../../../lib/validation";
+import { useAuth } from "../../system/AuthContext";
 import { useConfirm } from "../../system/DialogHost";
 import { useToast } from "../../system/ToastProvider";
 import { Badge } from "../../ui/Badge";
@@ -44,15 +45,19 @@ export function MaintenanceFormModal({
     .map((c) => ({ value: c.id, label: `${c.code} · ${c.name}` }));
 
   const submit = async () => {
+    const trimmedReason = reason.trim();
     const next = {
       classroomId: options.length > 0 ? requiredText(classroomId) : "No hay aulas activas.",
       date: requiredText(date),
-      reason: requiredText(reason),
+      reason:
+        trimmedReason.length < 3 || trimmedReason.length > 500
+          ? "El motivo debe tener entre 3 y 500 caracteres."
+          : null,
     };
     setErrors(next);
     if (Object.values(next).some((v) => v)) return;
     try {
-      await create.mutateAsync({ classroomId, date, reason: reason.trim() });
+      await create.mutateAsync({ classroomId, date, reason: trimmedReason });
       toast.success("Mantenimiento registrado. El aula quedó bloqueada para reservas.");
       onClose();
     } catch (err) {
@@ -113,6 +118,7 @@ export function MaintenanceFormModal({
 export function MaintenanceList({ pageSize = 10 }: { pageSize?: number }) {
   const toast = useToast();
   const confirm = useConfirm();
+  const { user: me } = useAuth();
 
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<MaintenanceStatus | "">("");
@@ -201,7 +207,7 @@ export function MaintenanceList({ pageSize = 10 }: { pageSize?: number }) {
             <button
               type="button"
               className="btn btn-secondary btn-sm"
-              disabled={changeStatus.isPending}
+              disabled={me.role !== "ENCARGADO" || changeStatus.isPending}
               onClick={() => void advance(log, "EN_PROGRESO")}
             >
               Iniciar
@@ -211,7 +217,7 @@ export function MaintenanceList({ pageSize = 10 }: { pageSize?: number }) {
             <button
               type="button"
               className="btn btn-primary btn-sm"
-              disabled={changeStatus.isPending}
+              disabled={me.role !== "ENCARGADO" || changeStatus.isPending}
               onClick={() => void advance(log, "COMPLETADO")}
             >
               Completar

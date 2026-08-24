@@ -8,7 +8,7 @@ import {
   useTimeSlotsQuery,
 } from "../../../lib/queries/timeSlots";
 import type { TimeSlot } from "../../../lib/types";
-import { minLengthError, requiredText, timeOrderError } from "../../../lib/validation";
+import { firstError, minLengthError, requiredText, timeOrderError } from "../../../lib/validation";
 import { useConfirm } from "../../system/DialogHost";
 import { useToast } from "../../system/ToastProvider";
 import { DataTable, type Column } from "../../ui/DataTable";
@@ -23,6 +23,12 @@ interface FormState {
 }
 
 const EMPTY_FORM: FormState = { label: "", startTime: "", endTime: "", order: "" };
+
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+function timeFormatError(value: string): string | null {
+  return TIME_PATTERN.test(value) ? null : "Formato de hora inválido (HH:mm).";
+}
 
 export default function TimeSlotsModule(_props: ModuleProps) {
   const toast = useToast();
@@ -60,18 +66,22 @@ export default function TimeSlotsModule(_props: ModuleProps) {
     event.preventDefault();
     const next: Record<string, string | null> = {
       label: minLengthError(form.label, 3),
-      startTime: requiredText(form.startTime),
-      endTime: requiredText(form.endTime),
+      startTime: requiredText(form.startTime) ?? timeFormatError(form.startTime),
+      endTime: requiredText(form.endTime) ?? timeFormatError(form.endTime),
       order: /^\d+$/.test(form.order.trim()) ? null : "Orden numérico requerido.",
     };
     if (!next.startTime && !next.endTime) next.endTime = timeOrderError(form.startTime, form.endTime);
     setErrors(next);
-    if (Object.values(next).some((v) => v)) return;
+    const first = firstError(next);
+    if (first) {
+      toast.error(first);
+      return;
+    }
 
     const input = {
       label: form.label.trim(),
-      startTime: `${form.startTime}:00`,
-      endTime: `${form.endTime}:00`,
+      startTime: form.startTime,
+      endTime: form.endTime,
       order: Number(form.order),
     };
     try {

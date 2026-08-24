@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { http, unwrap } from "../api";
+import { http, unwrap, unwrapWrapped } from "../api";
 import { setSession, updateUserInSession } from "../session";
 import type { AuthPayload, User } from "../types";
 
@@ -13,7 +13,7 @@ export async function login(input: LoginInput): Promise<AuthPayload> {
 }
 
 export async function fetchMe(): Promise<User> {
-  return unwrap(http.get<{ data: User }>("/auth/me"));
+  return unwrapWrapped(http.get<{ data: { user: User } }>("/auth/me"), "user");
 }
 
 export interface UpdateMeInput {
@@ -22,7 +22,7 @@ export interface UpdateMeInput {
 }
 
 export async function updateMe(input: UpdateMeInput): Promise<User> {
-  return unwrap(http.patch<{ data: User }>("/auth/me", input));
+  return unwrapWrapped(http.patch<{ data: { user: User } }>("/auth/me", input), "user");
 }
 
 export async function changePassword(input: {

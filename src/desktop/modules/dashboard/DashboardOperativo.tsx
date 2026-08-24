@@ -41,8 +41,13 @@ export default function DashboardOperativo(_props: ModuleProps) {
   const today = todayISO();
   const dow = weekdayOfISO(today);
   const isWorkingDay = semester?.workingDays.includes(dow) ?? false;
+  const outOfHours = !isWorkingDay || !currentSlot;
 
-  const freeNow = computeFreeNow(grid.data?.classrooms ?? [], dow, isWorkingDay ? currentSlot?.id ?? null : null);
+  const freeNow = computeFreeNow(
+    grid.data?.classrooms ?? [],
+    dow,
+    isWorkingDay ? currentSlot?.id ?? null : null,
+  );
 
   const upcoming = pickUpcoming(myReservations.data?.data ?? [], today);
 
@@ -61,7 +66,7 @@ export default function DashboardOperativo(_props: ModuleProps) {
       <p className="mb-4 text-xs text-slate-500">
         {isWorkingDay
           ? `Hoy es ${DAY_NAMES[dow] ?? "—"} · semestre ${semester?.name ?? "—"}${
-              currentSlot ? ` · bloque ${currentSlot.label}` : " · fuera de horario de bloques"
+              currentSlot ? ` · bloque ${currentSlot.label}` : " · fuera del horario de clases"
             }`
           : `Hoy (${fmtDate(today)}) no es un día hábil del semestre activo.`}
       </p>
@@ -70,6 +75,7 @@ export default function DashboardOperativo(_props: ModuleProps) {
         <FreeNowCard
           loading={!grid.data && grid.isLoading}
           items={freeNow}
+          outOfHours={outOfHours}
           onSelect={(id) => wm.openWindow("estado-aula", { classroomId: id })}
         />
 
@@ -156,10 +162,12 @@ export default function DashboardOperativo(_props: ModuleProps) {
 function FreeNowCard({
   loading,
   items,
+  outOfHours,
   onSelect,
 }: {
   loading: boolean;
   items: { id: string; code: string; name: string }[];
+  outOfHours: boolean;
   onSelect: (id: string) => void;
 }) {
   return (
@@ -170,7 +178,13 @@ function FreeNowCard({
       {loading ? (
         <LoadingBlock label="Consultando disponibilidad…" />
       ) : items.length === 0 ? (
-        <EmptyBlock message="No hay aulas libres en este momento." />
+        <EmptyBlock
+          message={
+            outOfHours
+              ? "Fuera del horario de clases."
+              : "No hay aulas libres en este momento."
+          }
+        />
       ) : (
         <div className="flex flex-wrap gap-1.5">
           {items.map((c) => (
@@ -199,23 +213,19 @@ function computeFreeNow(
   dayOfWeek: number,
   currentSlotId: string | null,
 ): { id: string; code: string; name: string }[] {
+  if (dayOfWeek < 1 || !currentSlotId) return [];
   const results: { id: string; code: string; name: string }[] = [];
-  const evaluatingNow = dayOfWeek >= 1 && Boolean(currentSlotId);
 
   for (const gc of classrooms) {
     if (gc.maintenance.some((m) => m.status !== "COMPLETADO")) continue;
 
-    if (evaluatingNow) {
-      const busy = gc.cells.some(
-        (cell) =>
-          cell.dayOfWeek === dayOfWeek &&
-          cell.timeSlotId === currentSlotId &&
-          cell.entry !== null,
-      );
-      if (!busy) {
-        results.push(gc.classroom);
-      }
-    } else {
+    const busy = gc.cells.some(
+      (cell) =>
+        cell.dayOfWeek === dayOfWeek &&
+        cell.timeSlotId === currentSlotId &&
+        cell.entry !== null,
+    );
+    if (!busy) {
       results.push(gc.classroom);
     }
   }

@@ -25,7 +25,7 @@ export default function SubjectsModule(_props: ModuleProps) {
   const toast = useToast();
   const confirm = useConfirm();
 
-  const query = useSubjectsQuery({ page: 1, pageSize: 200 });
+  const query = useSubjectsQuery({ page: 1, pageSize: 100 });
   const { create, update, remove } = useSubjectMutations();
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -52,13 +52,16 @@ export default function SubjectsModule(_props: ModuleProps) {
     const next = { code: requiredText(form.code), name: requiredText(form.name) };
     setErrors(next);
     if (Object.values(next).some((v) => v)) return;
-    const input = { code: form.code.trim().toUpperCase(), name: form.name.trim() };
+    const code = form.code.trim().toUpperCase();
+    const name = form.name.trim();
     try {
       if (editing) {
+        const input: Partial<SubjectWriteInput> = { name };
+        if (code !== "") input.code = code;
         await update.mutateAsync({ id: editing.id, input });
         toast.success("Materia actualizada.");
       } else {
-        await create.mutateAsync(input as SubjectWriteInput);
+        await create.mutateAsync({ code, name });
         toast.success("Materia creada.");
       }
       setModalOpen(false);

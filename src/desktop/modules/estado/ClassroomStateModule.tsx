@@ -6,7 +6,7 @@ import {
   Table2,
   Wrench,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AVAILABILITY_STATE_META, DAY_NAMES } from "../../../lib/constants";
 import { fmtDate, todayISO } from "../../../lib/format";
 import {
@@ -32,8 +32,13 @@ export default function ClassroomStateModule({
 
   const paramClassroomId = typeof params.classroomId === "string" ? params.classroomId : "";
   const classrooms = useClassroomListForPick(true);
-  const slots = useTimeSlotsQuery(true);
-  const currentSlot = useCurrentTimeSlot(slots.data);
+  const slotsQuery = useTimeSlotsQuery(true);
+  const slots = useMemo(
+    () => [...(slotsQuery.data ?? [])].sort((a, b) => a.order - b.order),
+    [slotsQuery.data],
+  );
+  const currentSlot = useCurrentTimeSlot(slots);
+  const outOfHours = (slotsQuery.data?.length ?? 0) > 0 && !currentSlot;
 
   const [classroomId, setClassroomId] = useState(paramClassroomId);
   const [date, setDate] = useState(todayISO());
@@ -91,11 +96,11 @@ export default function ClassroomStateModule({
           hint={
             currentSlot
               ? `Bloque actual: ${currentSlot.label}`
-              : "Fuera del horario de bloques; seleccione uno manualmente."
+              : "Fuera del horario de clases. Seleccione un bloque manualmente."
           }
         >
           <SelectInput
-            options={(slots.data ?? []).map((s) => ({
+            options={slots.map((s) => ({
               value: s.id,
               label: `${s.label} (${s.startTime.slice(0, 5)}–${s.endTime.slice(0, 5)})`,
             }))}
@@ -105,6 +110,13 @@ export default function ClassroomStateModule({
           />
         </Field>
       </section>
+
+      {outOfHours && (
+        <p className="flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+          <CalendarClock size={12} /> Fuera del horario de clases: no hay ningún bloque activo en
+          este momento. Seleccione un bloque manualmente para consultar su estado.
+        </p>
+      )}
 
       {!ready ? (
         <EmptyBlock message="Complete aula, fecha y bloque para consultar el estado." icon={ScanSearch} />
