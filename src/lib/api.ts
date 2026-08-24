@@ -1,18 +1,17 @@
-import axios from "axios";
-import { ERROR_MESSAGES, type ErrorCode } from "./constants";
+import axios, { type AxiosResponse } from "axios";
+import { ERROR_MESSAGES } from "./errors";
 import { clearSession, getSession } from "./session";
+import type { ApiErrorPayload, Paginated } from "./types";
 
-export interface ApiErrorPayload {
-  code: string;
-  message: string;
-  details?: Array<{ field?: string; message: string }>;
-}
+export const API_BASE_URL: string =
+  import.meta.env.PUBLIC_API_URL ?? "http://localhost:3001/api";
 
-export const api = axios.create({
-  baseURL: import.meta.env.PUBLIC_API_URL,
+export const http = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 25000,
 });
 
-api.interceptors.request.use((config) => {
+http.interceptors.request.use((config) => {
   const session = getSession();
   if (session?.token) {
     config.headers.Authorization = `Bearer ${session.token}`;
@@ -20,7 +19,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-api.interceptors.response.use(
+http.interceptors.response.use(
   (response) => response,
   (error: unknown) => {
     const axiosError = error as {
@@ -34,30 +33,48 @@ api.interceptors.response.use(
     if (status === 401 && !url.includes("/auth/login")) {
       const hadSession = Boolean(getSession());
       clearSession();
-      if (hadSession && typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
-        window.location.href = "/login";
+      if (hadSession && typeof window !== "undefined") {
+        window.location.replace("/");
       }
     }
 
-    return Promise.reject<ApiErrorPayload>(
-      payload ?? {
-        code: "INTERNAL_ERROR",
-        message: ERROR_MESSAGES.INTERNAL_ERROR,
-        details: undefined,
-      },
-    );
+    const normalized: ApiErrorPayload =
+      payload ??
+      (status === undefined
+        ? {
+            code: "NETWORK_ERROR",
+            message: "No hay conexión con el servidor de la API.",
+          }
+        : {
+            code: "INTERNAL_ERROR",
+            message: ERROR_MESSAGES.INTERNAL_ERROR,
+          });
+
+    return Promise.reject<ApiErrorPayload>(normalized);
   },
 );
 
-export function apiErrorToMessage(err: unknown): string {
-  const e = err as ApiErrorPayload | null | undefined;
-  if (e?.code && e.code in ERROR_MESSAGES) {
-    const base = ERROR_MESSAGES[e.code as ErrorCode];
-    if (e.code === "VALIDATION_ERROR" && e.details?.length) {
-      const detailsText = e.details.map((d) => d.message).join(" · ");
-      return `${base}: ${detailsText}`;
-    }
-    return base;
-  }
-  return ERROR_MESSAGES.INTERNAL_ERROR;
+export async function unwrap<T>(promise: Promise<AxiosResponse<{ data: T }>>): Promise<T> {
+  const res = await promise;
+  return res.data.data;
+}
+
+export async function unwrapWrapped<K extends string, T>(
+  promise: Promise<AxiosResponse<{ data: Record<K, T> }>>,
+  key: K,
+): Promise<T> {
+  const res = await promise;
+  return res.data.data[key];
+}
+
+export async function unwrapPage<T>(
+  promise: Promise<AxiosResponse<Paginated<T>>>,
+): Promise<Paginated<T>> {
+  const res = await promise;
+  return res.data;
+}
+
+export interface PageParams {
+  page?: number;
+  pageSize?: number;
 }

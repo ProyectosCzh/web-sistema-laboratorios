@@ -1,15 +1,9 @@
-import type { Schedule, User } from "./types";
+import type { UserRole } from "./types";
 
-export function isEncargado(user: User | null): boolean {
-  return user?.role === "ENCARGADO";
+export function canAccess(role: UserRole, allowed: UserRole[]): boolean {
+  return allowed.includes(role);
 }
 
-export function canModifySchedule(user: User | null, schedule: Schedule): boolean {
-  if (!user) return false;
-  return user.role === "ENCARGADO" || schedule.assignedById === user.id;
-}
-
-export function canModifyAnnotation(user: User | null, annotationUserId: string): boolean {
-  if (!user) return false;
-  return user.role === "ENCARGADO" || user.id === annotationUserId;
+export function isEncargado(role: UserRole): boolean {
+  return role === "ENCARGADO";
 }

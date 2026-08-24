@@ -1,0 +1,13 @@
+---
+import Layout from "../layouts/Layout.astro";
+import DesktopApp from "../desktop/DesktopApp";
+---
+
+<Layout title="Escritorio · LABMANAGE">
+  <DesktopApp client:only="react">
+    <div class="wimp-desktop-bg flex h-screen flex-col items-center justify-center gap-3 text-sm text-slate-500">
+      <span class="h-8 w-8 animate-spin rounded-full border-2 border-slate-400 border-t-transparent"></span>
+      Iniciando escritorio…
+    </div>
+  </DesktopApp>
+</Layout>

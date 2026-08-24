@@ -1,15 +1,15 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import LoginScreen from "../screens/LoginScreen";
+import AccessDeniedScreen from "../screens/AccessDeniedScreen";
 ---
 
-<Layout title="Iniciar sesión · LABMANAGE">
-  <LoginScreen client:only="react">
+<Layout title="Acceso denegado · LABMANAGE">
+  <AccessDeniedScreen client:only="react">
     <div
       slot="fallback"
       class="flex h-screen items-center justify-center bg-slate-200 text-sm text-slate-500"
     >
-      Cargando LABMANAGE…
+      Cargando…
     </div>
-  </LoginScreen>
+  </AccessDeniedScreen>
 </Layout>

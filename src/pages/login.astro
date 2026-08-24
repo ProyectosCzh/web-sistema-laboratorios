@@ -1,8 +1,15 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import LoginForm from "../islands/LoginForm.tsx";
+import LoginScreen from "../screens/LoginScreen";
 ---
 
-<Layout title="Iniciar sesión | LABMANAGE">
-  <LoginForm client:only="react" />
+<Layout title="Iniciar sesión · LABMANAGE">
+  <LoginScreen client:only="react">
+    <div
+      slot="fallback"
+      class="flex h-screen items-center justify-center bg-slate-200 text-sm text-slate-500"
+    >
+      Cargando LABMANAGE…
+    </div>
+  </LoginScreen>
 </Layout>
