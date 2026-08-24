@@ -8,7 +8,8 @@ export function QueryProvider({ children }: { children: ReactNode }) {
       defaultOptions: {
         queries: {
           retry: false,
-          refetchOnWindowFocus: false,
+          refetchOnWindowFocus: true,
+          gcTime: 10 * 60 * 1000,
           staleTime: 30 * 1000,
         },
         mutations: {

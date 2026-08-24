@@ -218,8 +218,8 @@ export interface Paginated<T> {
   meta: PageMeta;
 }
 
+/** FASE 4c: el login ya no entrega token; solo el usuario (tokens en cookies httpOnly). */
 export interface AuthPayload {
-  token: string;
   user: User;
 }
 

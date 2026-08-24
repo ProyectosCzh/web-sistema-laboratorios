@@ -85,11 +85,16 @@ export function classroomsKey(params?: ClassroomsParams) {
   return params ? ["classrooms", params] : ["classrooms"];
 }
 
+const LIST_STALE = 10 * 60 * 1000;
+const STATE_STALE = 60 * 1000;
+const STATE_GC = 10 * 60 * 1000;
+
 export function useClassroomsQuery(params: ClassroomsParams, enabled = true) {
   return useQuery({
     queryKey: classroomsKey(params),
     queryFn: () => fetchClassrooms(params),
     enabled,
+    staleTime: LIST_STALE,
     placeholderData: (prev) => prev,
   });
 }
@@ -99,7 +104,7 @@ export function useClassroomListForPick(enabled = true) {
     queryKey: ["classrooms", "pick"],
     queryFn: () => fetchClassrooms({ page: 1, pageSize: 100 }),
     enabled,
-    staleTime: 60 * 1000,
+    staleTime: LIST_STALE,
   });
 }
 
@@ -108,6 +113,8 @@ export function useClassroomStateQuery(id: string | null, query: ClassroomStateQ
     queryKey: ["classroom-state", id, query],
     queryFn: () => fetchClassroomState(id as string, query),
     enabled: Boolean(id),
+    staleTime: STATE_STALE,
+    gcTime: STATE_GC,
     placeholderData: (prev) => prev,
   });
 }
