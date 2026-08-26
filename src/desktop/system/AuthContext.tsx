@@ -1,10 +1,12 @@
 import { createContext, useCallback, useContext, useMemo, type ReactNode } from "react";
-import { redirectToLogin, clearSession } from "../../lib/session";
+import { logout as apiLogout } from "../../lib/queries/auth";
+import { redirectToLogin } from "../../lib/session";
 import type { User } from "../../lib/types";
 
 interface AuthValue {
   user: User;
-  logout: () => void;
+  /** FASE 4c: logout async — revoca la sesión en la API y limpia el caché local. */
+  logout: () => Promise<void>;
 }
 
 const AuthCtx = createContext<AuthValue | null>(null);
@@ -22,8 +24,8 @@ export function AuthProvider({
   user: User;
   children: ReactNode;
 }) {
-  const logout = useCallback(() => {
-    clearSession();
+  const logout = useCallback(async () => {
+    await apiLogout();
     redirectToLogin();
   }, []);
 

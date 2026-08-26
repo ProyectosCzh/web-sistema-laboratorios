@@ -34,12 +34,14 @@ export async function deleteTimeSlot(id: string): Promise<void> {
   await http.delete(`/time-slots/${id}`);
 }
 
+const STALE = 30 * 60 * 1000;
+
 export function useTimeSlotsQuery(enabled = true) {
   return useQuery({
     queryKey: ["time-slots"],
     queryFn: fetchTimeSlots,
     enabled,
-    staleTime: 10 * 60 * 1000,
+    staleTime: STALE,
   });
 }
 

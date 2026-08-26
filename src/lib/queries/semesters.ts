@@ -44,11 +44,14 @@ export function semestersKey(params?: SemestersParams) {
   return params ? ["semesters", params] : ["semesters"];
 }
 
+const STALE = 10 * 60 * 1000;
+
 export function useSemestersQuery(params: SemestersParams, enabled = true) {
   return useQuery({
     queryKey: semestersKey(params),
     queryFn: () => fetchSemesters(params),
     enabled,
+    staleTime: STALE,
     placeholderData: (prev) => prev,
   });
 }
@@ -58,7 +61,7 @@ export function useActiveSemester(): Semester | null {
   const query = useQuery({
     queryKey: semestersKey(params),
     queryFn: () => fetchSemesters(params),
-    staleTime: 60 * 1000,
+    staleTime: STALE,
   });
   const list = query.data?.data ?? [];
   return list.find((s) => s.isActive) ?? null;

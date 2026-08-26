@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { http, unwrap, unwrapWrapped } from "../api";
-import { setSession, updateUserInSession } from "../session";
+import { clearSession, setSession, updateUserInSession } from "../session";
 import type { AuthPayload, User } from "../types";
 
 export interface LoginInput {
@@ -51,10 +51,22 @@ export function useLoginMutation() {
   return useMutation({
     mutationFn: login,
     onSuccess: (payload) => {
-      setSession(payload);
+      // FASE 4c: payload ya no trae token (vive en cookies httpOnly del BFF).
+      setSession({ user: payload.user });
       void qc.setQueryData(["me"], payload.user);
     },
   });
+}
+
+/** Cierra sesión en la API (revoca la Session) y limpia el caché local. */
+export async function logout(): Promise<void> {
+  try {
+    await http.post("/auth/logout");
+  } catch {
+    // Aunque la API falle, el cierre local continúa.
+  } finally {
+    clearSession();
+  }
 }
 
 export function useProfileMutations() {

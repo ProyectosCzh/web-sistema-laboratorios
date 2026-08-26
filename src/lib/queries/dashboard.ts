@@ -6,12 +6,16 @@ export async function fetchStats(): Promise<StatsOverview> {
   return unwrap(http.get<{ data: StatsOverview }>("/stats/overview"));
 }
 
+const STATS_STALE = 2 * 60 * 1000;
+const GRID_STALE = 60 * 1000;
+const GRID_GC = 10 * 60 * 1000;
+
 export function useStatsQuery(enabled = true) {
   return useQuery({
     queryKey: ["stats"],
     queryFn: fetchStats,
     enabled,
-    staleTime: 30 * 1000,
+    staleTime: STATS_STALE,
   });
 }
 
@@ -44,6 +48,8 @@ export function useAvailabilityGridQuery(params: AvailabilityGridParams | null) 
     queryKey: params ? availabilityKey(params) : ["availability-grid", "idle"],
     queryFn: () => fetchAvailabilityGrid(params as AvailabilityGridParams),
     enabled: Boolean(params?.semesterId),
+    staleTime: GRID_STALE,
+    gcTime: GRID_GC,
     placeholderData: (prev) => prev,
   });
 }

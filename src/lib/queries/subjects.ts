@@ -43,11 +43,14 @@ export function subjectsKey(params?: SubjectsParams) {
   return params ? ["subjects", params] : ["subjects"];
 }
 
+const STALE = 30 * 60 * 1000;
+
 export function useSubjectsQuery(params: SubjectsParams, enabled = true) {
   return useQuery({
     queryKey: subjectsKey(params),
     queryFn: () => fetchSubjects(params),
     enabled,
+    staleTime: STALE,
     placeholderData: (prev) => prev,
   });
 }

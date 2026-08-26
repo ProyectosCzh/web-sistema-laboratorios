@@ -30,7 +30,8 @@ function timeFormatError(value: string): string | null {
   return TIME_PATTERN.test(value) ? null : "Formato de hora inválido (HH:mm).";
 }
 
-export default function TimeSlotsModule(_props: ModuleProps) {
+export default function TimeSlotsModule(_props: ModuleProps & { embedded?: boolean }) {
+  const { embedded } = _props;
   const toast = useToast();
   const confirm = useConfirm();
 
@@ -154,6 +155,92 @@ export default function TimeSlotsModule(_props: ModuleProps) {
       ),
     },
   ];
+
+  if (embedded) {
+    return (
+      <>
+        <p className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-[11px] text-sky-800">
+          Los bloques horarios son globales para toda la institución y alimentan la Tabla Semanal.
+        </p>
+
+        <div className="flex justify-end">
+          <button type="button" className="btn btn-primary btn-sm" onClick={openCreate}>
+            <Plus size={13} /> Nuevo bloque
+          </button>
+        </div>
+
+        <DataTable
+          columns={columns}
+          data={sorted}
+          rowKey={(s) => s.id}
+          loading={query.isLoading}
+          error={query.error}
+          onRetry={() => void query.refetch()}
+          emptyIcon={Clock}
+          emptyMessage="Sin bloques horarios definidos."
+        />
+
+        <Modal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          title={editing ? `Editar bloque · ${editing.label}` : "Nuevo bloque horario"}
+          widthClass="max-w-md"
+          footer={
+            <>
+              <button type="button" className="btn btn-secondary" onClick={() => setModalOpen(false)}>
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                form="slot-form"
+                className="btn btn-primary"
+                disabled={create.isPending || update.isPending}
+              >
+                Guardar
+              </button>
+            </>
+          }
+        >
+          <form id="slot-form" onSubmit={(e) => void submit(e)} className="space-y-3.5" noValidate>
+            <Field label="Etiqueta" htmlFor="slot-label" error={errors.label} required hint="Ej.: Bloque 1">
+              <TextInput
+                id="slot-label"
+                value={form.label}
+                onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
+              />
+            </Field>
+            <div className="grid grid-cols-3 gap-3">
+              <Field label="Inicio" htmlFor="slot-start" error={errors.startTime} required>
+                <TextInput
+                  id="slot-start"
+                  type="time"
+                  value={form.startTime}
+                  onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))}
+                />
+              </Field>
+              <Field label="Fin" htmlFor="slot-end" error={errors.endTime} required>
+                <TextInput
+                  id="slot-end"
+                  type="time"
+                  value={form.endTime}
+                  onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))}
+                />
+              </Field>
+              <Field label="Orden" htmlFor="slot-order" error={errors.order} required>
+                <TextInput
+                  id="slot-order"
+                  inputMode="numeric"
+                  value={form.order}
+                  onChange={(e) => setForm((f) => ({ ...f, order: e.target.value }))}
+                  placeholder="1"
+                />
+              </Field>
+            </div>
+          </form>
+        </Modal>
+      </>
+    );
+  }
 
   return (
     <div className="scroll-thin flex h-full min-h-0 flex-col gap-3 overflow-hidden p-4">

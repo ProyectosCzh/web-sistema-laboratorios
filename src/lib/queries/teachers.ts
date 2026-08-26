@@ -45,11 +45,14 @@ export function teachersKey(params?: TeachersParams) {
   return params ? ["teachers", params] : ["teachers"];
 }
 
+const STALE = 30 * 60 * 1000;
+
 export function useTeachersQuery(params: TeachersParams, enabled = true) {
   return useQuery({
     queryKey: teachersKey(params),
     queryFn: () => fetchTeachers(params),
     enabled,
+    staleTime: STALE,
     placeholderData: (prev) => prev,
   });
 }

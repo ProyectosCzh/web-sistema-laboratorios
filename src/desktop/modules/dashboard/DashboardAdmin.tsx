@@ -1,15 +1,24 @@
 import {
+  BarChart3,
   CalendarCheck,
+  ClipboardList,
   DoorOpen,
   ExternalLink,
   LayoutDashboard,
   PieChart,
+  StickyNote,
   Wrench,
   type LucideIcon,
 } from "lucide-react";
+import { useState } from "react";
+import { CLASSROOM_TYPE_LABELS } from "../../../lib/constants";
 import { useStatsQuery } from "../../../lib/queries/dashboard";
+import { Badge } from "../../ui/Badge";
 import { EmptyBlock } from "../../ui/States";
 import { useWindowManager } from "../../system/WindowManager";
+import { MaintenanceList } from "../aulas/MaintenanceList";
+import { AnnotationsList } from "../reservas/AnnotationsList";
+import { ReservationsPanel } from "../reservas/ReservationsPanel";
 import type { ModuleProps } from "../../system/moduleTypes";
 
 interface KpiDef {
@@ -25,8 +34,16 @@ interface KpiDef {
 const QUICK_LINKS = [
   { id: "tabla-semanal", label: "Tabla semanal" },
   { id: "semestres", label: "Semestres" },
-  { id: "planilla", label: "Planilla de horarios" },
-  { id: "reportes", label: "Consultas y reportes" },
+  { id: "catalogos", label: "Catálogos" },
+];
+
+type ReportTab = "ocupacion" | "mantenimientos" | "reservas" | "anotaciones";
+
+const REPORT_TABS: { id: ReportTab; label: string; icon: LucideIcon }[] = [
+  { id: "ocupacion", label: "Ocupación", icon: PieChart },
+  { id: "mantenimientos", label: "Mantenimientos", icon: Wrench },
+  { id: "reservas", label: "Reservas", icon: ClipboardList },
+  { id: "anotaciones", label: "Anotaciones", icon: StickyNote },
 ];
 
 export default function DashboardAdmin(_props: ModuleProps) {
@@ -60,8 +77,8 @@ export default function DashboardAdmin(_props: ModuleProps) {
       value: stats.data ? pendingCount + confirmedCount : undefined,
       icon: CalendarCheck,
       accent: "bg-emerald-100 text-emerald-700",
-      target: "supervision-reservas",
-      hint: "Abrir supervisión de reservas",
+      target: "reservas",
+      hint: "Abrir reservas",
     },
     {
       label: "Mantenimientos en curso",
@@ -78,7 +95,7 @@ export default function DashboardAdmin(_props: ModuleProps) {
       icon: PieChart,
       accent: "bg-violet-100 text-violet-700",
       target: "reportes",
-      hint: "Abrir consultas y reportes",
+      hint: "Ver sección de reportes",
     },
   ];
 
@@ -100,7 +117,13 @@ export default function DashboardAdmin(_props: ModuleProps) {
             <button
               key={kpi.label}
               type="button"
-              onClick={() => wm.openWindow(kpi.target)}
+              onClick={() => {
+                if (kpi.target === "reportes") {
+                  document.getElementById("reports-section")?.scrollIntoView({ behavior: "smooth" });
+                } else {
+                  wm.openWindow(kpi.target);
+                }
+              }}
               title={kpi.hint}
               className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3.5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-sky-300 hover:shadow-md"
             >
@@ -133,6 +156,8 @@ export default function DashboardAdmin(_props: ModuleProps) {
       </div>
 
       <OccupancySection />
+
+      <ReportsSection />
     </div>
   );
 }
@@ -158,7 +183,7 @@ function OccupancySection() {
           <button
             key={row.classroom.id}
             type="button"
-            onClick={() => wm.openWindow("planilla", { classroomId: row.classroom.id })}
+            onClick={() => wm.openWindow("tabla-semanal", { classroomId: row.classroom.id })}
             className="flex w-full items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left transition-colors hover:border-sky-300 hover:bg-sky-50/50"
           >
             <span className="w-16 shrink-0 font-mono text-xs font-bold text-slate-700">
@@ -169,16 +194,103 @@ function OccupancySection() {
             </span>
             <span className="relative h-2 min-w-24 flex-1 overflow-hidden rounded-full bg-slate-100">
               <span
-                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-sky-500 to-sky-600"
+                className={`absolute inset-y-0 left-0 rounded-full ${
+                  row.percentage > 66
+                    ? "bg-rose-500"
+                    : row.percentage > 33
+                      ? "bg-amber-500"
+                      : "bg-emerald-500"
+                }`}
                 style={{ width: `${Math.min(row.percentage, 100)}%` }}
               />
             </span>
-            <span className="w-14 shrink-0 text-right text-xs font-bold text-slate-700 tabular-nums">
-              {row.percentage.toFixed(1)}%
+            <span className="shrink-0 text-right text-[11px] whitespace-nowrap text-slate-500 tabular-nums">
+              {row.occupiedSlots}/{row.totalSlots} · {row.percentage.toFixed(1)}%
             </span>
           </button>
         ))}
       </div>
     </section>
+  );
+}
+
+function ReportsSection() {
+  const [tab, setTab] = useState<ReportTab>("ocupacion");
+
+  return (
+    <section id="reports-section" className="mt-6">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 className="flex items-center gap-1.5 text-[11px] font-bold tracking-widest text-slate-500 uppercase">
+          <BarChart3 size={13} /> Consultas y reportes
+        </h3>
+        <div className="flex flex-wrap gap-1">
+          {REPORT_TABS.map((t) => {
+            const Icon = t.icon;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                  tab === t.id
+                    ? "bg-sky-100 text-sky-700"
+                    : "text-slate-400 hover:text-slate-600"
+                }`}
+              >
+                <Icon size={11} />
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        {tab === "ocupacion" && <OccupationReportTab />}
+        {tab === "mantenimientos" && <MaintenanceList pageSize={10} />}
+        {tab === "reservas" && (
+          <div className="h-96">
+            <ReservationsPanel />
+          </div>
+        )}
+        {tab === "anotaciones" && <AnnotationsList />}
+      </div>
+    </section>
+  );
+}
+
+function OccupationReportTab() {
+  const stats = useStatsQuery();
+
+  if (!stats.data) {
+    return stats.isLoading ? (
+      <EmptyBlock message="Cargando estadísticas…" icon={BarChart3} />
+    ) : (
+      <EmptyBlock message="Sin datos disponibles." icon={BarChart3} />
+    );
+  }
+
+  const byType = [...(stats.data.classroomsByType ?? [])].sort((a, b) => b.count - a.count);
+
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Semestre activo</p>
+          <p className="mt-1 text-sm font-bold text-slate-800">{stats.data.activeSemester?.name ?? "—"}</p>
+        </div>
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 sm:col-span-2">
+          <p className="mb-1.5 text-[10px] font-bold tracking-widest text-slate-400 uppercase">Aulas por tipo</p>
+          <div className="flex flex-wrap gap-1.5">
+            {byType.length === 0 && <span className="text-xs text-slate-400">—</span>}
+            {byType.map((t) => (
+              <Badge key={t.type} tone="info">
+                {CLASSROOM_TYPE_LABELS[t.type]}: {t.count}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
