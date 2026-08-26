@@ -22,7 +22,8 @@ interface FormState {
   email: string;
 }
 
-export default function TeachersModule(_props: ModuleProps) {
+export default function TeachersModule(_props: ModuleProps & { embedded?: boolean }) {
+  const { embedded } = _props;
   const toast = useToast();
   const confirm = useConfirm();
 
@@ -159,6 +160,77 @@ export default function TeachersModule(_props: ModuleProps) {
       ),
     },
   ];
+
+  if (embedded) {
+    return (
+      <>
+        <div className="flex justify-end">
+          <button type="button" className="btn btn-primary btn-sm" onClick={openCreate}>
+            <Plus size={13} /> Nuevo docente
+          </button>
+        </div>
+
+        <DataTable
+          columns={columns}
+          data={query.data?.data}
+          rowKey={(t) => t.id}
+          loading={query.isLoading}
+          error={query.error}
+          onRetry={() => void query.refetch()}
+          emptyIcon={GraduationCap}
+          emptyMessage="Sin docentes registrados."
+        />
+
+        <Modal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          title={editing ? `Editar docente · ${editing.code}` : "Nuevo docente"}
+          widthClass="max-w-md"
+          footer={
+            <>
+              <button type="button" className="btn btn-secondary" onClick={() => setModalOpen(false)}>
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                form="teacher-form"
+                className="btn btn-primary"
+                disabled={create.isPending || update.isPending}
+              >
+                Guardar
+              </button>
+            </>
+          }
+        >
+          <form id="teacher-form" onSubmit={(e) => void submit(e)} className="space-y-3.5" noValidate>
+            <Field label="Código" htmlFor="tea-code" error={errors.code} required hint="Slug del apellido. Ej.: soria">
+              <TextInput
+                id="tea-code"
+                value={form.code}
+                onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))}
+              />
+            </Field>
+            <Field label="Nombre completo" htmlFor="tea-name" error={errors.name} required>
+              <TextInput
+                id="tea-name"
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="Ej.: Ana Soria"
+              />
+            </Field>
+            <Field label="Correo (opcional)" htmlFor="tea-email" error={errors.email}>
+              <TextInput
+                id="tea-email"
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+              />
+            </Field>
+          </form>
+        </Modal>
+      </>
+    );
+  }
 
   return (
     <div className="scroll-thin flex h-full min-h-0 flex-col gap-3 overflow-hidden p-4">

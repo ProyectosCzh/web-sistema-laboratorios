@@ -1,6 +1,5 @@
-import type { ModuleProps } from "../../system/moduleTypes";
 import { StickyNote, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { apiErrorToMessage } from "../../../lib/errors";
 import { fmtDate } from "../../../lib/format";
 import { useClassroomListForPick } from "../../../lib/queries/classrooms";
@@ -13,42 +12,37 @@ import { useAuth } from "../../system/AuthContext";
 import { useConfirm } from "../../system/DialogHost";
 import { useToast } from "../../system/ToastProvider";
 import { DataTable, type Column } from "../../ui/DataTable";
-import { Field, SelectInput, TextInput } from "../../ui/Field";
+import { SelectInput } from "../../ui/Field";
 import { Pagination } from "../../ui/Pagination";
 
-export function AnnotationsList({ pageSize = 10 }: { pageSize?: number }) {
+export function AnnotationsList() {
   const toast = useToast();
   const confirm = useConfirm();
   const { user } = useAuth();
   const isEncargado = user.role === "ENCARGADO";
 
-  const [classroomId, setClassroomId] = useState("");
+  const classrooms = useClassroomListForPick(true);
+  const { remove } = useAnnotationMutations();
+
+  const [listClassroomId, setListClassroomId] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [page, setPage] = useState(1);
+  const PAGE_SIZE = 8;
 
-  const classrooms = useClassroomListForPick(true);
   const classroomById = useMemo(() => {
     const map = new Map<string, { code: string; name: string }>();
     for (const c of classrooms.data?.data ?? []) map.set(c.id, c);
     return map;
   }, [classrooms.data]);
 
-  useEffect(() => {
-    if (!classroomId) {
-      const first = (classrooms.data?.data ?? []).find((c) => c.status === "ACTIVA");
-      if (first) setClassroomId(first.id);
-    }
-  }, [classrooms.data, classroomId]);
-
   const query = useAnnotationsQuery({
     page,
-    pageSize,
-    classroomId: classroomId || undefined,
+    pageSize: PAGE_SIZE,
+    classroomId: listClassroomId || undefined,
     from: from || undefined,
     to: to || undefined,
   });
-  const { remove } = useAnnotationMutations();
 
   const removeOne = async (a: Annotation) => {
     const ok = await confirm({
@@ -133,17 +127,18 @@ export function AnnotationsList({ pageSize = 10 }: { pageSize?: number }) {
               label: `${c.code} · ${c.name}`,
             }))}
             placeholder="Seleccione aula…"
-            value={classroomId}
+            value={listClassroomId}
             onChange={(e) => {
-              setClassroomId(e.target.value);
+              setListClassroomId(e.target.value);
               setPage(1);
             }}
           />
         </div>
         <div className="w-36">
-          <TextInput
+          <input
             type="date"
             aria-label="Desde"
+            className="input-base"
             value={from}
             onChange={(e) => {
               setFrom(e.target.value);
@@ -152,9 +147,10 @@ export function AnnotationsList({ pageSize = 10 }: { pageSize?: number }) {
           />
         </div>
         <div className="w-36">
-          <TextInput
+          <input
             type="date"
             aria-label="Hasta"
+            className="input-base"
             value={to}
             onChange={(e) => {
               setTo(e.target.value);
@@ -185,111 +181,4 @@ export function AnnotationsList({ pageSize = 10 }: { pageSize?: number }) {
       )}
     </div>
   );
-}
-
-export default function AnnotationsModule(_props: ModuleProps) {
-  const toast = useToast();
-
-  const classrooms = useClassroomListForPick(true);
-  const { create } = useAnnotationMutations();
-
-  const [classroomId, setClassroomId] = useState("");
-  const [content, setContent] = useState("");
-  const [errors, setErrors] = useState<Record<string, string | null>>({});
-  const [savedAt, setSavedAt] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!classroomId) {
-      const first = (classrooms.data?.data ?? []).find((c) => c.status === "ACTIVA");
-      if (first) setClassroomId(first.id);
-    }
-  }, [classrooms.data, classroomId]);
-
-  const submit = async () => {
-    const trimmed = content.trim();
-    const next = {
-      classroomId: required(classroomId),
-      content:
-        trimmed.length < 1 || trimmed.length > 1000
-          ? "La observación debe tener entre 1 y 1000 caracteres."
-          : null,
-    };
-    setErrors(next);
-    if (Object.values(next).some((v) => v)) return;
-    try {
-      await create.mutateAsync({ classroomId, content: trimmed });
-      toast.success("Anotación guardada en el historial de uso.");
-      setContent("");
-      setSavedAt(new Date().toLocaleTimeString("es-ES"));
-    } catch (err) {
-      toast.error(apiErrorToMessage(err));
-    }
-  };
-
-  return (
-    <div className="scroll-thin flex h-full min-h-0 flex-col gap-4 overflow-hidden p-4">
-      <div className="flex items-center gap-2">
-        <StickyNote size={16} className="text-sky-700" />
-        <h2 className="text-sm font-bold tracking-wide text-slate-700 uppercase">
-          Añadir anotación de uso
-        </h2>
-      </div>
-
-      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="space-y-3.5">
-          <Field label="Aula" error={errors.classroomId ?? null} required>
-            <SelectInput
-              options={(classrooms.data?.data ?? [])
-                .filter((c) => c.status !== "INACTIVA")
-                .map((c) => ({ value: c.id, label: `${c.code} · ${c.name}` }))}
-              value={classroomId}
-              onChange={(e) => setClassroomId(e.target.value)}
-            />
-          </Field>
-          <Field
-            label="Observación"
-            error={errors.content ?? null}
-            required
-            hint="Describa el uso o la situación observada (1 a 1000 caracteres). Ej.: “Se utilizó el proyector durante la clase de redes”."
-          >
-            <textarea
-              rows={4}
-              maxLength={1000}
-              className="input-base resize-none"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Escriba aquí su observación…"
-            />
-            <p className="mt-1 text-right text-[10px] text-slate-400 tabular-nums">
-              {content.length}/1000
-            </p>
-          </Field>
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-[11px] text-slate-400">
-              {savedAt ? `Última anotación guardada ${savedAt}.` : "La anotación queda registrada con su nombre y la fecha actual."}
-            </p>
-            <button
-              type="button"
-              className="btn btn-primary btn-sm shrink-0"
-              disabled={create.isPending}
-              onClick={() => void submit()}
-            >
-              Guardar anotación
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <section className="min-h-0 flex-1">
-        <h3 className="mb-2 text-[11px] font-bold tracking-widest text-slate-500 uppercase">
-          Historial de anotaciones
-        </h3>
-        <AnnotationsList pageSize={8} />
-      </section>
-    </div>
-  );
-}
-
-function required(value: string): string | null {
-  return value.trim() === "" ? "Campo obligatorio." : null;
 }

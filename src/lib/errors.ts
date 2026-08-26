@@ -45,6 +45,21 @@ export function isApiError(value: unknown): value is ApiErrorPayload {
   );
 }
 
+const RESERVATION_ACTION_MESSAGES: Record<string, string> = {
+  RESERVATION_CONFLICT: "Conflicto de horario: la celda ya está ocupada por otra actividad.",
+  INVALID_RESERVATION_TRANSITION: "La reserva no admite ese cambio de estado.",
+  RESERVATION_NOT_EDITABLE: "La reserva ya no se puede modificar.",
+  DATE_OUTSIDE_SEMESTER: "La fecha está fuera del rango del semestre.",
+};
+
+export function reservationErrorToMessage(err: unknown): string {
+  if (isApiError(err)) {
+    const specific = RESERVATION_ACTION_MESSAGES[err.code];
+    if (specific) return specific;
+  }
+  return apiErrorToMessage(err);
+}
+
 export function apiErrorToMessage(err: unknown): string {
   if (isApiError(err)) {
     const known = (ERROR_MESSAGES as Record<string, string>)[err.code];

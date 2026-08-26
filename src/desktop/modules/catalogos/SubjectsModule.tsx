@@ -21,7 +21,8 @@ interface FormState {
   name: string;
 }
 
-export default function SubjectsModule(_props: ModuleProps) {
+export default function SubjectsModule(_props: ModuleProps & { embedded?: boolean }) {
+  const { embedded } = _props;
   const toast = useToast();
   const confirm = useConfirm();
 
@@ -150,6 +151,69 @@ export default function SubjectsModule(_props: ModuleProps) {
       ),
     },
   ];
+
+  if (embedded) {
+    return (
+      <>
+        <div className="flex justify-end">
+          <button type="button" className="btn btn-primary btn-sm" onClick={openCreate}>
+            <Plus size={13} /> Nueva materia
+          </button>
+        </div>
+
+        <DataTable
+          columns={columns}
+          data={query.data?.data}
+          rowKey={(s) => s.id}
+          loading={query.isLoading}
+          error={query.error}
+          onRetry={() => void query.refetch()}
+          emptyIcon={BookOpen}
+          emptyMessage="Sin materias registradas."
+        />
+
+        <Modal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          title={editing ? `Editar materia · ${editing.code}` : "Nueva materia"}
+          widthClass="max-w-md"
+          footer={
+            <>
+              <button type="button" className="btn btn-secondary" onClick={() => setModalOpen(false)}>
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                form="subject-form"
+                className="btn btn-primary"
+                disabled={create.isPending || update.isPending}
+              >
+                Guardar
+              </button>
+            </>
+          }
+        >
+          <form id="subject-form" onSubmit={(e) => void submit(e)} className="space-y-3.5" noValidate>
+            <Field label="Código" htmlFor="sub-code" error={errors.code} required hint="Ej.: DD111">
+              <TextInput
+                id="sub-code"
+                value={form.code}
+                onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))}
+              />
+            </Field>
+            <Field label="Nombre de la materia" htmlFor="sub-name" error={errors.name} required>
+              <TextInput
+                id="sub-name"
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="Ej.: Diseño de Bases de Datos"
+              />
+            </Field>
+          </form>
+        </Modal>
+      </>
+    );
+  }
 
   return (
     <div className="scroll-thin flex h-full min-h-0 flex-col gap-3 overflow-hidden p-4">

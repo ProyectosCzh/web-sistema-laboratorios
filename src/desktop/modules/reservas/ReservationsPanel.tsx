@@ -6,7 +6,7 @@ import {
   RESERVATION_STATUS_TONES,
   RESERVATION_TYPE_LABELS,
 } from "../../../lib/constants";
-import { apiErrorToMessage, isApiError } from "../../../lib/errors";
+import { reservationErrorToMessage } from "../../../lib/errors";
 import { fmtDate, fmtDateTime, slotLabel } from "../../../lib/format";
 import { useClassroomListForPick } from "../../../lib/queries/classrooms";
 import {
@@ -40,22 +40,7 @@ interface EditState {
   note: string;
 }
 
-const RESERVATION_ACTION_MESSAGES: Record<string, string> = {
-  RESERVATION_CONFLICT: "Conflicto de horario: la celda ya está ocupada por otra actividad.",
-  INVALID_RESERVATION_TRANSITION: "La reserva no admite ese cambio de estado.",
-  RESERVATION_NOT_EDITABLE: "La reserva ya no se puede modificar.",
-  DATE_OUTSIDE_SEMESTER: "La fecha está fuera del rango del semestre.",
-};
-
-export function reservationErrorToMessage(err: unknown): string {
-  if (isApiError(err)) {
-    const specific = RESERVATION_ACTION_MESSAGES[err.code];
-    if (specific) return specific;
-  }
-  return apiErrorToMessage(err);
-}
-
-export function ReservationsPanel({ showNewButton = false }: { showNewButton?: boolean }) {
+export function ReservationsPanel() {
   const toast = useToast();
   const confirm = useConfirm();
   const wm = useWindowManager();
@@ -377,7 +362,7 @@ export function ReservationsPanel({ showNewButton = false }: { showNewButton?: b
           />
         </div>
         <div className="grow" />
-        {!isEncargado && showNewButton && (
+        {!isEncargado && (
           <button
             type="button"
             className="btn btn-primary btn-sm"

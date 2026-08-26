@@ -1,9 +1,7 @@
 import {
   CalendarClock,
   CalendarPlus,
-  ClipboardList,
   ScanSearch,
-  StickyNote,
   Table2,
   Wrench,
 } from "lucide-react";
@@ -22,9 +20,7 @@ import type { ModuleProps } from "../../system/moduleTypes";
 const QUICK_ACTIONS = [
   { id: "nueva-reserva", label: "Registrar reserva", icon: CalendarPlus },
   { id: "tabla-semanal", label: "Tabla semanal", icon: Table2 },
-  { id: "estado-aula", label: "Estado del aula", icon: ScanSearch },
-  { id: "anotaciones", label: "Añadir anotación", icon: StickyNote },
-  { id: "mis-reservas", label: "Mis reservas", icon: ClipboardList },
+  { id: "reservas", label: "Mis reservas", icon: CalendarClock },
 ];
 
 export default function DashboardOperativo(_props: ModuleProps) {
@@ -76,7 +72,7 @@ export default function DashboardOperativo(_props: ModuleProps) {
           loading={!grid.data && grid.isLoading}
           items={freeNow}
           outOfHours={outOfHours}
-          onSelect={(id) => wm.openWindow("estado-aula", { classroomId: id })}
+          onSelect={(id) => wm.openWindow("tabla-semanal", { classroomId: id })}
         />
 
         <section className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm">
@@ -87,7 +83,7 @@ export default function DashboardOperativo(_props: ModuleProps) {
             <button
               type="button"
               className="btn btn-ghost btn-sm"
-              onClick={() => wm.openWindow("mis-reservas")}
+              onClick={() => wm.openWindow("reservas")}
             >
               Ver todas
             </button>
