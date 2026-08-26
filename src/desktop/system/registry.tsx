@@ -1,5 +1,4 @@
 import {
-  BarChart3,
   CalendarCheck,
   CalendarPlus,
   CalendarRange,
@@ -7,7 +6,6 @@ import {
   LayoutDashboard,
   Library,
   MonitorSmartphone,
-  Table2,
   Users,
   Wrench,
 } from "lucide-react";

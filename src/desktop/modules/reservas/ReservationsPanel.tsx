@@ -23,7 +23,7 @@ import type {
 import { useAuth } from "../../system/AuthContext";
 import { useConfirm } from "../../system/DialogHost";
 import { useToast } from "../../system/ToastProvider";
-import { useWindowManager } from "../../system/WindowManager";
+import { useNavManager } from "../../system/NavManager";
 import { Badge } from "../../ui/Badge";
 import { DataTable, type Column } from "../../ui/DataTable";
 import { Field, SelectInput, TextArea, TextInput } from "../../ui/Field";
@@ -43,7 +43,7 @@ interface EditState {
 export function ReservationsPanel() {
   const toast = useToast();
   const confirm = useConfirm();
-  const wm = useWindowManager();
+  const { openModule } = useNavManager();
   const { user } = useAuth();
   const isEncargado = user.role === "ENCARGADO";
 
@@ -366,7 +366,7 @@ export function ReservationsPanel() {
           <button
             type="button"
             className="btn btn-primary btn-sm"
-            onClick={() => wm.openWindow("nueva-reserva")}
+            onClick={() => openModule("nueva-reserva")}
           >
             <CalendarPlus size={13} /> Nueva reserva
           </button>

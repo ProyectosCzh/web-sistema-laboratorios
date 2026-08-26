@@ -15,7 +15,7 @@ import { CLASSROOM_TYPE_LABELS } from "../../../lib/constants";
 import { useStatsQuery } from "../../../lib/queries/dashboard";
 import { Badge } from "../../ui/Badge";
 import { EmptyBlock } from "../../ui/States";
-import { useWindowManager } from "../../system/WindowManager";
+import { useNavManager } from "../../system/NavManager";
 import { MaintenanceList } from "../aulas/MaintenanceList";
 import { AnnotationsList } from "../reservas/AnnotationsList";
 import { ReservationsPanel } from "../reservas/ReservationsPanel";
@@ -47,7 +47,7 @@ const REPORT_TABS: { id: ReportTab; label: string; icon: LucideIcon }[] = [
 ];
 
 export default function DashboardAdmin(_props: ModuleProps) {
-  const wm = useWindowManager();
+  const nm = useNavManager();
   const stats = useStatsQuery();
 
   const pendingCount =
@@ -121,7 +121,7 @@ export default function DashboardAdmin(_props: ModuleProps) {
                 if (kpi.target === "reportes") {
                   document.getElementById("reports-section")?.scrollIntoView({ behavior: "smooth" });
                 } else {
-                  wm.openWindow(kpi.target);
+                  nm.openModule(kpi.target);
                 }
               }}
               title={kpi.hint}
@@ -147,7 +147,7 @@ export default function DashboardAdmin(_props: ModuleProps) {
           <button
             key={quick.id}
             type="button"
-            onClick={() => wm.openWindow(quick.id)}
+            onClick={() => nm.openModule(quick.id)}
             className="btn btn-secondary btn-sm"
           >
             {quick.label} <ExternalLink size={12} />
@@ -163,7 +163,7 @@ export default function DashboardAdmin(_props: ModuleProps) {
 }
 
 function OccupancySection() {
-  const wm = useWindowManager();
+  const nm = useNavManager();
   const stats = useStatsQuery();
   const rows = [...(stats.data?.occupancyByClassroom ?? [])].sort(
     (a, b) => b.percentage - a.percentage,
@@ -183,7 +183,7 @@ function OccupancySection() {
           <button
             key={row.classroom.id}
             type="button"
-            onClick={() => wm.openWindow("tabla-semanal", { classroomId: row.classroom.id })}
+            onClick={() => nm.openModule("tabla-semanal", { classroomId: row.classroom.id })}
             className="flex w-full items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left transition-colors hover:border-sky-300 hover:bg-sky-50/50"
           >
             <span className="w-16 shrink-0 font-mono text-xs font-bold text-slate-700">
