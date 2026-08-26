@@ -93,6 +93,7 @@ Puntos importantes:
 - La sesión vive en `localStorage`; el gate de `/escritorio` se evalúa en el cliente.
 - Cada módulo se abre como "ventana"; las ventanas son componentes React normales posicionados absolutamente sobre el escritorio.
 - El estado de servidor lo maneja exclusivamente TanStack Query; los módulos nunca guardan copias locales de listados (solo estado de formulario/filtros).
+- Los módulos se fusionaron para reducir fragmentación: un solo módulo puede contener múltiples vistas (tabs) que antes eran ventanas separadas.
 
 ## 4. Rutas
 
@@ -183,9 +184,10 @@ Convenciones de la API que afectan al frontend:
   `VALIDATION_ERROR, CANNOT_DELETE_SELF, CURRENT_PASSWORD_INVALID, INACTIVE_CATALOG_ITEM, NON_WORKING_DAY, DATE_OUTSIDE_SEMESTER, AUTH_INVALID_CREDENTIALS, TOKEN_INVALID, TOKEN_EXPIRED, USER_INACTIVE, FORBIDDEN, NOT_FOUND, RESERVATION_CONFLICT, TEACHER_CONFLICT, CLASSROOM_UNAVAILABLE, INVALID_RESERVATION_TRANSITION, RESERVATION_NOT_EDITABLE, EMAIL_IN_USE, CLASSROOM_CODE_IN_USE, SUBJECT_CODE_IN_USE, TEACHER_CODE_IN_USE, TEACHER_EMAIL_IN_USE, TIME_SLOT_ORDER_IN_USE, SEMESTER_HAS_DEPENDENCIES, SEMESTER_ACTIVE, TIME_SLOT_IN_USE, USER_HAS_DEPENDENCIES, CONFLICT, RATE_LIMIT_EXCEEDED, SERVICE_UNAVAILABLE, INTERNAL_ERROR` (+ `NETWORK_ERROR` generado localmente).
 
 - `apiErrorToMessage(err)`: extrae `err.code/message` (acepta el payload plano del interceptor o un AxiosError crudo); para `VALIDATION_ERROR` agrega los `details` separados por `" · "`; cae en `INTERNAL_ERROR` si no reconoce el shape.
+- `reservationErrorToMessage(err)`: wrapper específico para operaciones de reserva, con mensajes más descriptivos para `RESERVATION_CONFLICT`, `INVALID_RESERVATION_TRANSITION`, `RESERVATION_NOT_EDITABLE` y `DATE_OUTSIDE_SEMESTER`.
 - `isApiError(x)`: type-guard.
 
-**Patrón de uso en módulos**: `catch (err) { toast.error(apiErrorToMessage(err)) }`. Nunca mostrar `err.message` crudo sin pasar por esta función.
+**Patrón de uso en módulos**: `catch (err) { toast.error(apiErrorToMessage(err)) }` (o `reservationErrorToMessage` en flujos de reserva). Nunca mostrar `err.message` crudo sin pasar por esta función.
 
 ## 9. Constantes y formato
 
@@ -194,7 +196,7 @@ Convenciones de la API que afectan al frontend:
 - `APP_NAME` = "LABMANAGE".
 - `DAY_NAMES` (1→Lunes … 6→Sábado), `DAY_SHORT` (Lun…Sáb), `WORKING_DAYS_ALL = [1..6]`.
 - Maps label/tone para badges: `ROLE_LABELS`, `CLASSROOM_TYPE_LABELS`, `CLASSROOM_STATUS_LABELS/_TONES`, `RESERVATION_TYPE_LABELS`, `RESERVATION_STATUS_LABELS/_TONES`, `MAINTENANCE_STATUS_LABELS/_TONES`.
-- `AVAILABILITY_STATE_META`: por cada estado (`LIBRE/OCUPADA/MANTENIMIENTO`) da `label`, `description` y color, usado en Estado del Aula.
+- `AVAILABILITY_STATE_META`: por cada estado (`LIBRE/OCUPADA/MANTENIMIENTO`) da `label`, `description` y color, usado en la vista inline de estado del aula dentro de la Tabla Semanal.
 - Tipo `Tone = "success"|"warning"|"danger"|"info"|"neutral"`.
 
 ### `src/lib/format.ts`
@@ -213,7 +215,7 @@ Validaciones de formulario puras (devuelven `string | null`):
 
 ### `src/lib/permissions.ts`
 
-- `isEncargado(user)`
+- `isEncargado(role)`
 - `canAccess(role, roles[])` — ¿el rol puede ver el módulo?
 
 Las reglas de negocio las refuerza la API; la UI solo oculta controles (ver §17).
@@ -270,7 +272,7 @@ defaultOptions: {
 }
 ```
 
-> ⚠️ **Lección aprendida (bug histórico)**: sin este provider, TanStack lanza *"No QueryClient set"* en el primer render, React desmonta el árbol completo y queda una **pantalla blanca** sin llamadas a la API. Cualquier isla nueva DEBE estar envuelta en `<QueryProvider>`.
+> **Lección aprendida (bug histórico)**: sin este provider, TanStack lanza *"No QueryClient set"* en el primer render, React desmonta el árbol completo y queda una **pantalla blanca** sin llamadas a la API. Cualquier isla nueva DEBE estar envuelta en `<QueryProvider>`.
 
 ### Stack completo en `DesktopApp` (de afuera hacia adentro)
 
@@ -340,6 +342,7 @@ Barra inferior fija (`height: TASKBAR_HEIGHT`):
 Íconos de escritorio (columna izquierda, wrap vertical):
 
 - Filtrado: `modulesForRole(role)` + `showOnDesktop === true`.
+- Orden: definido por `DESKTOP_ICON_ORDER_ENC` / `DESKTOP_ICON_ORDER_AYU` en `registry.tsx`.
 - Interacción: **un clic selecciona**, **doble clic (o Enter)** abre la ventana. Tooltip con título+descripción.
 
 ### `moduleTypes.ts`
@@ -357,7 +360,7 @@ Componentes presentes en TODAS las ventanas; ante dudas mirar estos primero:
 | Componente | Props principales | Notas |
 |------------|-------------------|-------|
 | `Badge.tsx` | `tone: Tone`, `dot?: boolean` | Chip de estado. Tonos definidos en constants. |
-| `Field.tsx` | `label`, `required?`, `hint?`, `error?: string \| null` | Wrapper de campo con label/hint/error. Exporta también `TextInput`, `TextArea`, `SelectInput({ options, placeholder, ...selectProps })`. ⚠️ `SelectInput` NO acepta `hint` — el hint va en el `Field`. |
+| `Field.tsx` | `label`, `required?`, `hint?`, `error?: string \| null` | Wrapper de campo con label/hint/error. Exporta también `TextInput`, `TextArea`, `SelectInput({ options, placeholder, ...selectProps })`. `SelectInput` NO acepta `hint` — el hint va en el `Field`. |
 | `States.tsx` | — | `LoadingBlock({label})`, `EmptyBlock({message, icon?})`, `ErrorBlock({message, onRetry})`. Usar SIEMPRE estos tres estados en queries. |
 | `Modal.tsx` | `open, onClose, title, footer?, widthClass?` | Modal genérico con overlay; cierra con Escape/backdrop. |
 | `DataTable.tsx` | `columns: Column<T>[]`, `data`, `rowKey`, `loading`, `error`, `onRetry`, `emptyIcon`, `emptyMessage` | Tabla genérica. `Column<T> = { key, header, render?(row), headerClass?, cellClass? }`. Maneja internamente loading/error/empty. |
@@ -388,11 +391,11 @@ Props:
 - Celdas libres muestran "Disponible" (verde) y son clicables si hay `onCellClick`; ocupadas muestran chip coloreado según tone (azul planilla / ámbar pendiente / rojo confirmada).
 - `GridLegend` exporta la leyenda de colores.
 
-Consumidores: `planilla/SchedulesModule` (entries desde `/schedules`) y `tabla/WeeklyTableModule` (entries desde `/availability/grid`).
+Consumidor principal: `WeeklyScheduleModule` (entries desde `/schedules` en modo edición, o desde `/availability/grid` en modo vista).
 
 ### `useCurrentTimeSlot.ts`
 
-`findCurrentSlot(slots)` compara hora actual vs `startTime/endTime` (con tolerancia ±5 min); `useCurrentTimeSlot(slots)` lo expone como hook. Se usa para preseleccionar el bloque actual en Estado del Aula y Nueva Reserva.
+`findCurrentSlot(slots)` compara hora actual vs `startTime/endTime` (con tolerancia ±5 min); `useCurrentTimeSlot(slots)` lo expone como hook. Se usa para preseleccionar el bloque actual en el panel inline de estado del aula (dentro de la Tabla Semanal) y en Nueva Reserva.
 
 ## 15. Registro de módulos (`registry.tsx`)
 
@@ -413,28 +416,33 @@ interface ModuleDef {
 
 Helpers: `getModule(id)`, `modulesForRole(role)`, `getModuleDefaults(id)` (usada por WindowManagerProvider), `MODULES`.
 
-Tabla completa de los 16 módulos:
+Tabla completa de los **9 módulos**:
 
 | id | Título | Grupo | Roles | Escritorio | Tamaño | Archivo |
 |----|--------|-------|-------|-----------|--------|---------|
 | `dashboard-admin` | Panel Encargado | Panel | ENC | ✅ | 860×600 | `modules/dashboard/DashboardAdmin.tsx` |
 | `dashboard-op` | Panel operativo | Panel | AYU | ✅ | 780×560 | `modules/dashboard/DashboardOperativo.tsx` |
-| `tabla-semanal` | Tabla Semanal | Operación | ambos | ✅ | 900×620 | `modules/tabla/WeeklyTableModule.tsx` |
+| `tabla-semanal` | Tabla Semanal | Operación | ambos | ✅ | 960×640 | `modules/tabla/WeeklyScheduleModule.tsx` |
 | `nueva-reserva` | Nueva reserva | Operación | ambos | ❌ (se abre por flujo/botón) | 560×640 | `modules/ayudante/NewReservationModule.tsx` |
-| `mis-reservas` | Mis reservas | Operación | AYU | ✅ | 920×580 | `modules/reservas/MyReservationsModule.tsx` |
-| `anotaciones` | Anotaciones de uso | Operación | AYU | ✅ | 820×600 | `modules/anotaciones/AnnotationsModule.tsx` |
-| `estado-aula` | Estado del aula | Operación | ambos | ✅ | 640×620 | `modules/estado/ClassroomStateModule.tsx` |
-| `supervision-reservas` | Supervisión de reservas | Administración | ENC | ✅ | 1000×600 | `modules/reservas/SupervisionReservasModule.tsx` |
-| `planilla` | Planilla semestral | Operación | ENC | ❌ (flujo) | 960×640 | `modules/planilla/SchedulesModule.tsx` |
+| `reservas` | Reservas y anotaciones | Operación | ambos | ✅ | 960×600 | `modules/reservas/ReservationsModule.tsx` |
 | `usuarios` | Usuarios | Administración | ENC | ✅ | 900×580 | `modules/usuarios/UsersModule.tsx` |
 | `aulas` | Aulas y mantenimientos | Administración | ENC | ✅ | 940×600 | `modules/aulas/ClassroomsModule.tsx` |
-| `materias` | Materias | Catálogos | ENC | ❌ | 780×560 | `modules/catalogos/SubjectsModule.tsx` |
-| `docentes` | Docentes | Catálogos | ENC | ❌ | 780×560 | `modules/catalogos/TeachersModule.tsx` |
-| `turnos` | Turnos horarios | Catálogos | ENC | ❌ | 760×560 | `modules/catalogos/TimeSlotsModule.tsx` |
+| `catalogos` | Catálogos | Catálogos | ENC | ✅ | 820×580 | `modules/catalogos/CatalogosModule.tsx` |
 | `semestres` | Semestres | Administración | ENC | ✅ | 860×600 | `modules/semestres/SemestersModule.tsx` |
-| `reportes` | Consultas y reportes | Administración | ENC | ❌ (accesible desde Panel) | 1000×620 | `modules/reportes/ReportsModule.tsx` |
 
 ENC = ENCARGADO, AYU = AYUDANTE.
+
+**Módulos eliminados** (fusionados en los actuales):
+
+| Módulo eliminado | Fusionado en |
+|------------------|-------------|
+| `MyReservationsModule` | `reservas` (tab "Mis Reservas" para AYUDANTE) |
+| `SupervisionReservasModule` | `reservas` (vista directa para ENCARGADO) |
+| `AnnotationsModule` | `reservas` (tab "Anotaciones" para AYUDANTE) |
+| `SchedulesModule` (Planilla) | `tabla-semanal` (modo edición) |
+| `WeeklyTableModule` (Tabla) | `tabla-semanal` (modo vista) |
+| `ClassroomStateModule` (Estado) | `tabla-semanal` (panel inline al clickear celda) |
+| `ReportsModule` | `dashboard-admin` (sección "Consultas y reportes" con tabs) |
 
 ## 16. Módulos funcionales
 
@@ -442,66 +450,66 @@ Detalles de comportamiento que NO se deducen del código a simple vista:
 
 ### Dashboards
 
-- **DashboardAdmin** (ENC): KPIs clicables (aulas, reservas activas, mantenimientos, usuarios) que abren su ventana correspondiente; barras de ocupación por aula (clic → abre Planilla preseleccionando el aula); accesos rápidos.
-- **DashboardOperativo** (AYU): calcula "aulas libres AHORA" cruzando `GET /availability/grid` con `useCurrentTimeSlot`; próximas reservas del usuario; mantenimientos abiertos; acciones rápidas (nueva reserva, tabla semanal, mis reservas).
+- **DashboardAdmin** (ENC): KPIs clicables (aulas, reservas activas, mantenimientos, ocupación promedio) que abren su ventana correspondiente o navegan a la sección de reportes; barras de ocupación por aula (clic → abre Tabla Semanal preseleccionando el aula); accesos rápidos (Tabla semanal, Semestres, Catálogos); sección "Consultas y reportes" integrada con 4 tabs:
+  - **Ocupación**: semestre activo, aulas por tipo, stats del sistema.
+  - **Mantenimientos**: lista reutilizada de `MaintenanceList` (paginada, con cambio de estado).
+  - **Reservas**: panel reutilizado de `ReservationsPanel` (filtros, paginación, CRUD).
+  - **Anotaciones**: lista reutilizada de `AnnotationsList` (filtros, borrado).
+- **DashboardOperativo** (AYU): calcula "aulas libres AHORA" cruzando `GET /availability/grid` con `useCurrentTimeSlot`; próximas reservas del usuario (hasta 5, ordenadas por cercanía); mantenimientos abiertos; acciones rápidas (nueva reserva, tabla semanal, mis reservas).
 
-### Catálogos (Materias/Docentes/Turnos) y Usuarios
+### Tabla Semanal (`WeeklyScheduleModule`, ambos roles)
 
-CRUD estándar: búsqueda, paginación, modal crear/editar, borrado con `confirm()` mostrando el mensaje exacto de la API si hay dependencias (p.ej. `TIME_SLOT_IN_USE`). Turnos usa inputs `type=time` y valida `timeOrderError`. Usuarios permite desactivar/reactivar (toggle) y bloquea auto-eliminación (`CANNOT_DELETE_SELF`).
+Módulo unificado que reemplaza las tres ventanas anteriores (Tabla Semanal, Planilla Semestral y Estado del Aula):
 
-### Aulas (`ClassroomsModule`)
+**Modo vista** (default): selectores aula + semestre (default activo) → `GET /availability/grid`. Al hacer clic en una celda se abre un **panel lateral derecho** con el estado en tiempo real de esa celda (`GET /classrooms/:id/state`), mostrando:
+- Tarjeta grande LIBRE / OCUPADA / MANTENIMIENTO con ícono y color.
+- Detalle del motivo y "ocupado por" (bloque de planilla o reserva).
+- Si está LIBRE: acción contextual según rol (AYUDANTE → "Reservar ahora" abre Nueva Reserva; ENCARGADO → "Asignar en planilla" activa modo edición prellenando esa celda).
 
-Tabs "Aulas" / "Mantenimientos". CRUD de aulas con validación de código único (`CLASSROOM_CODE_IN_USE`) y capacidad. Acción rápida "Reportar mantenimiento" que abre `MaintenanceFormModal` (compartido con `MaintenanceList.tsx`, que también se usa en Reportes). Estados visibles con Badge (Activa/En mantenimiento/Fuera de servicio...).
+**Modo edición** (solo ENCARGADO, botón toggle): cambia la fuente de datos a `GET /schedules` filtrado por aula+semestre. Clic en celda libre → modal para asignar bloque de planilla (materia requerida, docente opcional, nota). Clic en bloque existente → modal para editar o eliminar. Valida solapes en cliente; la API refuerza con `RESERVATION_CONFLICT` y `TEACHER_CONFLICT`.
 
-### Semestres (`SemestersModule`)
-
-Tabla + asistente de creación en 3 pasos (Datos → Días hábiles → Publicar), edición modal, **activar** semestre (`POST /activate`, único activo a la vez) y eliminación bloqueada si tiene dependencias (`SEMESTER_HAS_DEPENDENCIES`, `SEMESTER_ACTIVE`). El semestre activo alimenta workingDays/turnos de toda la app.
-
-### Planilla (`SchedulesModule`, ENC)
-
-Grilla `WeeklyGrid` editable por aula+semestre. Clic en celda libre → modal asignar bloque (materia requerida, docente opcional, nota). Clic en bloque → editar/eliminar. Valida solapes en cliente pero la fuente de conflicto es la API (`RESERVATION_CONFLICT`, `TEACHER_CONFLICT`). Usa catálogo de turnos (`useTimeSlotsQuery`) para dibujar filas aunque no haya bloques aún.
-
-### Reservas (`ReservationsPanel` + wrappers)
-
-Panel compartido con filtros (estado/tipo/aula/solo ENC/semestre) y reglas por fila:
-
-| Estado | ENCARGADO | AYUDANTE (dueño) |
-|--------|-----------|-------------------|
-| PENDIENTE | Confirmar / Editar / Cancelar / — | Editar / Cancelar |
-| CONFIRMADA | Editar / Cancelar | ver |
-| CANCELADA | Eliminar registro | ver |
-
-- Wrappers: `SupervisionReservasModule` (panel plano) y `MyReservationsModule` (mismo panel + botón "Nueva reserva").
-- El modal de edición nunca cambia el `type`; RECURRENTE edita día, PUNTUAL edita fecha.
+Aviso visible cuando se edita un semestre no activo (útil para planificar el próximo).
 
 ### Nueva reserva (`NewReservationModule`)
 
 - Tipo RECURRENTE (día de semana) o PUNTUAL (fecha, `min=hoy`).
 - **Verificación obligatoria**: consulta `GET /classrooms/:id/state` con día|fecha + bloque; el botón "Registrar" solo se habilita si el resultado es LIBRE.
 - Tras crear → toast éxito y la reserva queda PENDIENTE.
-- Recibe `params` prefills desde Tabla Semanal/Estado del Aula: `{ classroomId, dayOfWeek, date, timeSlotId }`.
+- Recibe `params` prefills desde Tabla Semanal: `{ classroomId, dayOfWeek, date, timeSlotId }`.
 
-### Tabla Semanal (`WeeklyTableModule`)
+### Reservas y anotaciones (`ReservationsModule`, ambos roles)
 
-Selectores aula + semestre (default activo) → `GET /availability/grid`. Comportamiento del clic por celda según rol:
+Módulo unificado con comportamiento según rol:
 
-| Celda | ENCARGADO | AYUDANTE |
-|-------|-----------|----------|
-| Libre | toast informativo (usar Planilla/Supervisión) | abre Nueva Reserva prellenada |
-| Planilla | abre Planilla | toast informativo |
-| Reserva | abre Supervisión de reservas | toast informativo |
+**Para ENCARGADO**: muestra directamente `ReservationsPanel` (panel de supervisión de reservas) con:
+- Filtros: estado, tipo, aula, semestre.
+- Acciones por fila: Confirmar / Editar / Cancelar / Eliminar registro (ver tabla en §17).
+- Modal de edición que nunca cambia el `type`; RECURRENTE edita día, PUNTUAL edita fecha.
 
-### Estado del aula (`ClassroomStateModule`)
+**Para AYUDANTE**: muestra **tabs** con dos vistas:
+- **Tab "Mis Reservas"**: mismo `ReservationsPanel` filtrado naturalmente a las propias, con botón "Nueva reserva" que abre la ventana correspondiente.
+- **Tab "Anotaciones"**: formulario alta (aula + observación) + historial filtrable (aula/rango fechas). Borrado: AYUD solo propias (`userId === me.id`), ENC cualquiera.
 
-Aula + fecha (default hoy) + bloque (default actual) → tarjeta grande LIBRE/OCUPADA/MANTENIMIENTO con motivo y "ocupado por". Si LIBRE ofrece acción contextual (AYU: "Reservar ahora"; ENC: "Asignar bloque de planilla") y enlace a la Tabla Semanal.
+### Catálogos (`CatalogosModule`, ENC)
 
-### Anotaciones (`AnnotationsModule` + `AnnotationsList` export)
+Módulo unificado con **3 tabs** internos:
+- **Materias** (`SubjectsModule`): CRUD estándar con búsqueda, paginación, modal crear/editar, borrado con validación de código único.
+- **Docentes** (`TeachersModule`): CRUD idéntico, valida código y email únicos.
+- **Horarios** (`TimeSlotsModule`): CRUD con inputs `type=time`, valida `timeOrderError` y `TIME_SLOT_IN_USE`.
 
-Formulario alta (aula + observación) + historial filtrable (aula/rango fechas). Borrado: ENC cualquiera, AYU solo propias (`userId === me.id`). `AnnotationsList` se reutiliza dentro de Reportes.
+Cada tab es un componente independiente que puede usarse embebido (recibe `params={}` y `winId=""` desde el tab contenedor).
 
-### Reportes (`ReportsModule`, ENC)
+### Usuarios (`UsersModule`, ENC)
 
-Tabs de consulta (solo lectura, sin export por decisión de alcance): Ocupación (barras % por aula desde `/stats/overview`), Mantenimientos (`MaintenanceList`), Historial de reservas (`ReservationsPanel`), Incidencias (`AnnotationsList`).
+CRUD estándar: búsqueda, paginación, modal crear/editar, borrado con `confirm()` mostrando el mensaje exacto de la API si hay dependencias (p.ej. `USER_HAS_DEPENDENCIES`). Permite desactivar/reactivar (toggle) y bloquea auto-eliminación (`CANNOT_DELETE_SELF`).
+
+### Aulas (`ClassroomsModule`, ENC)
+
+Tabs "Aulas" / "Mantenimientos". CRUD de aulas con validación de código único (`CLASSROOM_CODE_IN_USE`) y capacidad. Acción rápida "Reportar mantenimiento" que abre `MaintenanceFormModal` (compartido con `MaintenanceList.tsx`). Estados visibles con Badge (Activa/En mantenimiento/Fuera de servicio...).
+
+### Semestres (`SemestersModule`, ENC)
+
+Tabla + asistente de creación en 3 pasos (Datos → Días hábiles → Publicar), edición modal, **activar** semestre (`POST /activate`, único activo a la vez) y eliminación bloqueada si tiene dependencias (`SEMESTER_HAS_DEPENDENCIES`, `SEMESTER_ACTIVE`). El semestre activo alimenta workingDays/turnos de toda la app.
 
 ## 17. Matriz de permisos en la UI
 
@@ -509,15 +517,17 @@ La API **refuerza** todo esto con `FORBIDDEN`; la UI solo oculta/deshabilita:
 
 | Acción | ENCARGADO | AYUDANTE |
 |--------|-----------|----------|
-| Ver dashboards, tablas, estado de aula | Sí | Sí |
+| Ver dashboards, tablas semanales | Sí | Sí |
 | CRUD usuarios, aulas, materias, docentes, turnos, semestres | Sí | No (ni aparecen en menú) |
-| Editar planilla | Sí | No |
-| Crear reserva | Sí (desde flujos) | Sí |
+| Editar planilla (asignar/editar/eliminar bloques) | Sí | No |
+| Ver estado del aula (panel inline) | Sí | Sí |
+| Crear reserva | Sí (desde flujo de planilla) | Sí |
 | Confirmar/cancelar reservas ajenas, eliminar canceladas | Sí | Solo sus PENDIENTES (editar/cancelar) |
-| Registrar anotaciones | Sí | Sí |
+| Registrar anotaciones | Sí | Sí (tab Anotaciones) |
 | Borrar anotaciones | Cualquiera | Solo propias |
-| Reportar mantenimiento | Sí | Sí (desde Panel operativo) |
+| Ver/reportar mantenimientos | Sí | Sí (reportar desde Panel operativo) |
 | Cambiar estado/eliminar mantenimiento | Sí | No |
+| Ver reportes (ocupación, mantenimientos, reservas, anotaciones) | Sí (sección integrada en Panel Encargado) | No |
 
 ## 18. Sistema de estilos (`global.css`)
 
@@ -546,9 +556,10 @@ Síntoma → causa probable → acción:
 | Vuelve al login solo (loop a `/`) | Token expirado/inválido → interceptor 401 limpia sesión | Normal. Si pasa con token fresco: verificar reloj del sistema y secreto JWT de la API. |
 | Datos viejos tras crear/editar | Falta invalidar una familia de queries | Ver tabla de invalidaciones §10; agregar la familia que falte. |
 | Grilla semanal vacía con bloques existentes | `workingDays` del semestre no incluye esos días, o semestre mal seleccionado | Revisar `GET /availability/grid` response y `semester.workingDays`. |
-| Select de bloques vacío | No hay turnos cargados | Crear turnos en Catálogos → Turnos horarios. |
+| Select de bloques vacío | No hay turnos cargados | Crear turnos en Catálogos → Horarios. |
 | No puedo registrar reserva (botón gris) | La verificación de disponibilidad no dio LIBRE | Leer el texto bajo "Verificación de disponibilidad": indica OCUPADA/MANTENIMIENTO y por qué. |
-| Ventana no abre desde ícono | `showOnDesktop=false` o rol sin acceso | Ver §15; abrirla igualmente desde Menú Inicio o su flujo. |
+| Estado del aula no aparece en Tabla Semanal | No se hizo clic en una celda en modo vista | Haga clic en cualquier celda de la grilla; el panel lateral derecho se despliega con el estado en tiempo real. |
+| Modo edición no disponible | Rol AYUDANTE no tiene acceso | Solo ENCARGADO puede alternar a modo edición; el botón no se renderiza para otros roles. |
 | Toast rojo con mensaje raro | Código de error nuevo de la API no mapeado | Agregarlo a `ERROR_MESSAGES` (§8) y a `READMIAPI.md`. |
 | Tipos rotos tras cambiar la API | `types.ts` desincronizado | Actualizar `types.ts` (§7) y correr `npm run check`. |
 | Build falla en CI pero no local | Node version | Requiere Node ≥ 22.12 (`engines` en package.json). |
@@ -573,6 +584,16 @@ Herramientas:
 4. Para consultas nuevas, seguir el patrón §10 (fetch + mutations + invalidación coherente).
 5. Envolver estados con `LoadingBlock/EmptyBlock/ErrorBlock` y errores con `apiErrorToMessage`.
 6. Verificar: `npm run check` && `npm run build`, y probar manualmente ambos roles.
+
+### Fusionar módulos existentes en uno nuevo
+
+Cuando dos o más módulos comparten contexto natural (p.ej. reservas y anotaciones):
+
+1. Crear un módulo contenedor con tabs internos (ver `ReservationsModule.tsx` o `CatalogosModule.tsx` como plantilla).
+2. Los componentes de cada vista se embeben con `params={}` y `winId=""` (patrón de CatalogosModule).
+3. Eliminar los módulos viejos del registry y borrar sus archivos.
+4. Actualizar el README (§15 tabla, §16 descripciones, §17 permisos).
+5. Verificar que el `StartMenu` y `DesktopIcons` agrupen correctamente.
 
 ### Nuevo endpoint de la API
 
