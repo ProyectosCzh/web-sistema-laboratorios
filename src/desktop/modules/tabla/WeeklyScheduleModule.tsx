@@ -40,7 +40,7 @@ import {
 } from "../../shared/WeeklyGrid";
 import { useAuth } from "../../system/AuthContext";
 import { useToast } from "../../system/ToastProvider";
-import { useWindowManager } from "../../system/WindowManager";
+import { useNavManager } from "../../system/NavManager";
 import { Badge } from "../../ui/Badge";
 import { Field, SelectInput, TextArea } from "../../ui/Field";
 import { Modal } from "../../ui/Modal";
@@ -99,7 +99,7 @@ export default function WeeklyScheduleModule({
 }: {
   params: Record<string, unknown>;
 }) {
-  const wm = useWindowManager();
+  const nm = useNavManager();
   const toast = useToast();
   const { user } = useAuth();
   const isEncargado = user.role === "ENCARGADO";
@@ -493,7 +493,7 @@ export default function WeeklyScheduleModule({
                       type="button"
                       className="btn btn-primary"
                       onClick={() =>
-                        wm.openWindow("nueva-reserva", {
+                        nm.openModule("nueva-reserva", {
                           classroomId: stateResult.classroomId,
                           date: stateDate,
                           timeSlotId: stateTimeSlotId,

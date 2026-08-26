@@ -14,7 +14,7 @@ import type { ReservationType } from "../../../lib/types";
 import { reservationErrorToMessage } from "../../../lib/errors";
 import { useCurrentTimeSlot } from "../../shared/useCurrentTimeSlot";
 import { useToast } from "../../system/ToastProvider";
-import { useWindowManager } from "../../system/WindowManager";
+import { useNavManager } from "../../system/NavManager";
 import { Badge } from "../../ui/Badge";
 import { Field, SelectInput, TextArea } from "../../ui/Field";
 
@@ -24,7 +24,7 @@ export default function NewReservationModule({
   params: Record<string, unknown>;
 }) {
   const toast = useToast();
-  const wm = useWindowManager();
+  const { openModule } = useNavManager();
 
   const activeSemester = useActiveSemester();
   const classrooms = useClassroomListForPick(true);
@@ -286,7 +286,7 @@ export default function NewReservationModule({
                 type="button"
                 className="btn btn-secondary btn-sm"
                 onClick={() =>
-                  wm.openWindow("tabla-semanal", classroomId ? { classroomId } : undefined)
+                  openModule("tabla-semanal", classroomId ? { classroomId } : undefined)
                 }
               >
                 Ver tabla semanal

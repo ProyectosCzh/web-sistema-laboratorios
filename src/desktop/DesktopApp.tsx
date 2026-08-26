@@ -1,14 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useMemo, useState } from "react";
+import { useEffect } from "react";
 import { getSession, redirectToLogin } from "../lib/session";
+import type { UserRole } from "../lib/types";
+import { modulesForRole, getModule } from "./system/registry";
 import { QueryProvider } from "../providers/QueryProvider";
-import { DesktopIcons } from "./system/DesktopIcons";
 import { AuthProvider, useAuth } from "./system/AuthContext";
 import { DialogProvider } from "./system/DialogHost";
 import { ToastProvider } from "./system/ToastProvider";
-import { WindowManagerProvider, useWindowManager } from "./system/WindowManager";
-import { WindowFrame } from "./system/WindowFrame";
-import { Taskbar } from "./system/Taskbar";
-import { getModule, getModuleDefaults } from "./system/registry";
+import { NavManagerProvider, useNavManager } from "./system/NavManager";
+import { TopNav } from "./system/TopNav";
+import { ModulePanel } from "./system/ModulePanel";
+import { HomeScreen } from "./home/HomeScreen";
 
 export default function DesktopApp() {
   const [session] = useState(() => getSession());
@@ -30,9 +32,9 @@ export default function DesktopApp() {
       <ToastProvider>
         <DialogProvider>
           <AuthProvider user={session.user}>
-            <WindowManagerProvider getDefaults={getModuleDefaults}>
+            <NavManagerProvider>
               <Shell />
-            </WindowManagerProvider>
+            </NavManagerProvider>
           </AuthProvider>
         </DialogProvider>
       </ToastProvider>
@@ -41,33 +43,104 @@ export default function DesktopApp() {
 }
 
 function Shell() {
-  const wm = useWindowManager();
-  const areaRef = useRef<HTMLDivElement>(null);
+  const nm = useNavManager();
+  const { user } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="fixed inset-0 flex flex-col overflow-hidden">
-      <div
-        ref={areaRef}
-        className="wimp-desktop-bg relative min-h-0 flex-1 overflow-hidden"
-      >
-        <DesktopArea />
-        {wm.windows.map((win) => {
-          const def = getModule(win.moduleId);
-          if (!def) return null;
-          const Component = def.component;
-          return (
-            <WindowFrame key={win.id} win={win} areaRef={areaRef} icon={<def.icon size={14} />}>
-              <Component params={win.params} winId={win.id} />
-            </WindowFrame>
-          );
-        })}
+    <div className="app-layout">
+      <TopNav
+        onToggleSidebar={() => setSidebarOpen((v) => !v)}
+        sidebarOpen={sidebarOpen}
+      />
+      <div className="app-body">
+        {sidebarOpen && (
+          <div
+            className="sidebar-backdrop md:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
+        <aside className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
+          <nav className="scroll-thin flex flex-1 flex-col overflow-y-auto p-2">
+            <SidebarContent
+              role={user.role}
+              onNavigate={() => setSidebarOpen(false)}
+            />
+          </nav>
+        </aside>
+
+        <main className="app-content">
+          {nm.homeActive ? (
+            <HomeScreen role={user.role} />
+          ) : (
+            <div className="module-grid">
+              {nm.openModules.map((mod: import("./system/windowTypes").ModuleInstance) => {
+                const def = getModule(mod.id);
+                if (!def) return null;
+                const Component = def.component;
+                return (
+                  <ModulePanel key={mod.id} module={mod}>
+                    <Component params={mod.params} winId={mod.id} />
+                  </ModulePanel>
+                );
+              })}
+            </div>
+          )}
+        </main>
       </div>
-      <Taskbar />
     </div>
   );
 }
 
-function DesktopArea() {
-  const { user } = useAuth();
-  return <DesktopIcons role={user.role} />;
+function SidebarContent({
+  role,
+  onNavigate,
+}: {
+  role: UserRole;
+  onNavigate: () => void;
+}) {
+  const nm = useNavManager();
+
+  const groups = useMemo(() => {
+    const defs = modulesForRole(role);
+    const map = new Map<string, typeof defs>();
+    for (const def of defs) {
+      const list = map.get(def.group) ?? [];
+      list.push(def);
+      map.set(def.group, list);
+    }
+    return [...map.entries()];
+  }, [role]);
+
+  return (
+    <>
+      {groups.map(([group, items]) => (
+        <div key={group} className="mb-3">
+          <p className="sidebar-group-label">{group}</p>
+          {items.map((def) => {
+            const Icon = def.icon;
+            return (
+              <button
+                key={def.id}
+                type="button"
+                onClick={() => {
+                  nm.openModule(def.id);
+                  onNavigate();
+                }}
+                className={`sidebar-item ${
+                  nm.activeModuleId === def.id && !nm.homeActive
+                    ? "sidebar-item-active"
+                    : ""
+                }`}
+              >
+                <Icon size={16} />
+                <span>{def.title}</span>
+              </button>
+            );
+          })}
+        </div>
+      ))}
+    </>
+  );
 }
