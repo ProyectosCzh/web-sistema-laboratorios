@@ -4,11 +4,9 @@ import {
   CalendarPlus,
   CalendarRange,
   ClipboardList,
-  GraduationCap,
   LayoutDashboard,
+  Library,
   MonitorSmartphone,
-  ScanSearch,
-  StickyNote,
   Table2,
   Users,
   Wrench,
@@ -22,18 +20,11 @@ import DashboardAdmin from "../modules/dashboard/DashboardAdmin";
 import DashboardOperativo from "../modules/dashboard/DashboardOperativo";
 import UsersModule from "../modules/usuarios/UsersModule";
 import ClassroomsModule from "../modules/aulas/ClassroomsModule";
-import TeachersModule from "../modules/catalogos/TeachersModule";
-import SubjectsModule from "../modules/catalogos/SubjectsModule";
-import TimeSlotsModule from "../modules/catalogos/TimeSlotsModule";
+import CatalogosModule from "../modules/catalogos/CatalogosModule";
 import SemestersModule from "../modules/semestres/SemestersModule";
-import SchedulesModule from "../modules/planilla/SchedulesModule";
-import SupervisionReservasModule from "../modules/reservas/SupervisionReservasModule";
-import ReportsModule from "../modules/reportes/ReportsModule";
-import WeeklyTableModule from "../modules/tabla/WeeklyTableModule";
+import ReservationsModule from "../modules/reservas/ReservationsModule";
+import WeeklyScheduleModule from "../modules/tabla/WeeklyScheduleModule";
 import NewReservationModule from "../modules/ayudante/NewReservationModule";
-import MyReservationsModule from "../modules/reservas/MyReservationsModule";
-import AnnotationsModule from "../modules/anotaciones/AnnotationsModule";
-import ClassroomStateModule from "../modules/estado/ClassroomStateModule";
 
 export interface ModuleDef {
   id: string;
@@ -81,14 +72,14 @@ export const MODULES: ModuleDef[] = [
   {
     id: "tabla-semanal",
     title: "Tabla Semanal",
-    description: "Disponibilidad por aula",
+    description: "Disponibilidad y planilla por aula",
     group: "Operación",
     icon: CalendarRange,
     roles: ["ENCARGADO", "AYUDANTE"],
     showOnDesktop: true,
-    width: 900,
-    height: 620,
-    component: asModule(WeeklyTableModule),
+    width: 960,
+    height: 640,
+    component: asModule(WeeklyScheduleModule),
   },
   {
     id: "nueva-reserva",
@@ -103,64 +94,16 @@ export const MODULES: ModuleDef[] = [
     component: asModule(NewReservationModule),
   },
   {
-    id: "mis-reservas",
-    title: "Mis reservas",
-    description: "Gestionar sus solicitudes",
+    id: "reservas",
+    title: "Reservas y anotaciones",
+    description: "Gestión de reservas y observaciones",
     group: "Operación",
     icon: ClipboardList,
-    roles: ["AYUDANTE"],
-    showOnDesktop: true,
-    width: 920,
-    height: 580,
-    component: asModule(MyReservationsModule),
-  },
-  {
-    id: "anotaciones",
-    title: "Anotaciones de uso",
-    description: "Historial de incidencias",
-    group: "Operación",
-    icon: StickyNote,
-    roles: ["AYUDANTE"],
-    showOnDesktop: true,
-    width: 820,
-    height: 600,
-    component: asModule(AnnotationsModule),
-  },
-  {
-    id: "estado-aula",
-    title: "Estado del aula",
-    description: "Consulta puntual Libre/Ocupada",
-    group: "Operación",
-    icon: ScanSearch,
     roles: ["ENCARGADO", "AYUDANTE"],
     showOnDesktop: true,
-    width: 640,
-    height: 620,
-    component: asModule(ClassroomStateModule),
-  },
-  {
-    id: "supervision-reservas",
-    title: "Supervisión de reservas",
-    description: "Confirmar o cancelar solicitudes",
-    group: "Administración",
-    icon: CalendarCheck,
-    roles: ["ENCARGADO"],
-    showOnDesktop: true,
-    width: 1000,
-    height: 600,
-    component: asModule(SupervisionReservasModule),
-  },
-  {
-    id: "planilla",
-    title: "Planilla semestral",
-    description: "Asignación de bloques fijos",
-    group: "Operación",
-    icon: Table2,
-    roles: ["ENCARGADO"],
-    showOnDesktop: false,
     width: 960,
-    height: 640,
-    component: asModule(SchedulesModule),
+    height: 600,
+    component: asModule(ReservationsModule),
   },
   {
     id: "usuarios",
@@ -187,40 +130,16 @@ export const MODULES: ModuleDef[] = [
     component: asModule(ClassroomsModule),
   },
   {
-    id: "materias",
-    title: "Materias",
-    description: "Catálogo de materias",
+    id: "catalogos",
+    title: "Catálogos",
+    description: "Materias, docentes y horarios",
     group: "Catálogos",
-    icon: GraduationCap,
+    icon: Library,
     roles: ["ENCARGADO"],
-    showOnDesktop: false,
-    width: 780,
-    height: 560,
-    component: asModule(SubjectsModule),
-  },
-  {
-    id: "docentes",
-    title: "Docentes",
-    description: "Registro de docentes",
-    group: "Catálogos",
-    icon: Users,
-    roles: ["ENCARGADO"],
-    showOnDesktop: false,
-    width: 780,
-    height: 560,
-    component: asModule(TeachersModule),
-  },
-  {
-    id: "turnos",
-    title: "Turnos horarios",
-    description: "Bloques horarios oficiales",
-    group: "Catálogos",
-    icon: CalendarRange,
-    roles: ["ENCARGADO"],
-    showOnDesktop: false,
-    width: 760,
-    height: 560,
-    component: asModule(TimeSlotsModule),
+    showOnDesktop: true,
+    width: 820,
+    height: 580,
+    component: asModule(CatalogosModule),
   },
   {
     id: "semestres",
@@ -233,18 +152,6 @@ export const MODULES: ModuleDef[] = [
     width: 860,
     height: 600,
     component: asModule(SemestersModule),
-  },
-  {
-    id: "reportes",
-    title: "Consultas y reportes",
-    description: "Ocupación, reservas e historial",
-    group: "Administración",
-    icon: BarChart3,
-    roles: ["ENCARGADO"],
-    showOnDesktop: false,
-    width: 1000,
-    height: 620,
-    component: asModule(ReportsModule),
   },
 ];
 
@@ -265,17 +172,16 @@ export function getModuleDefaults(id: string) {
 export const DESKTOP_ICON_ORDER_ENC = [
   "dashboard-admin",
   "tabla-semanal",
+  "reservas",
   "aulas",
   "usuarios",
+  "catalogos",
   "semestres",
-  "supervision-reservas",
 ];
 
 export const DESKTOP_ICON_ORDER_AYU = [
   "dashboard-op",
-  "nueva-reserva",
   "tabla-semanal",
-  "estado-aula",
-  "anotaciones",
-  "mis-reservas",
+  "reservas",
+  "nueva-reserva",
 ];

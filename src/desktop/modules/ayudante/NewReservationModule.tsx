@@ -11,7 +11,7 @@ import { useReservationMutations } from "../../../lib/queries/reservations";
 import { useActiveSemester } from "../../../lib/queries/semesters";
 import { useTimeSlotsQuery } from "../../../lib/queries/timeSlots";
 import type { ReservationType } from "../../../lib/types";
-import { reservationErrorToMessage } from "../reservas/ReservationsPanel";
+import { reservationErrorToMessage } from "../../../lib/errors";
 import { useCurrentTimeSlot } from "../../shared/useCurrentTimeSlot";
 import { useToast } from "../../system/ToastProvider";
 import { useWindowManager } from "../../system/WindowManager";
