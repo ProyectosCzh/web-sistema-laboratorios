@@ -12,7 +12,7 @@ import { useReservationsQuery } from "../../../lib/queries/reservations";
 import { useActiveSemester } from "../../../lib/queries/semesters";
 import type { AvailabilityGridClassroom, Reservation } from "../../../lib/types";
 import { useCurrentTimeSlot } from "../../shared/useCurrentTimeSlot";
-import { useWindowManager } from "../../system/WindowManager";
+import { useNavManager } from "../../system/NavManager";
 import { Badge } from "../../ui/Badge";
 import { EmptyBlock, LoadingBlock } from "../../ui/States";
 import type { ModuleProps } from "../../system/moduleTypes";
@@ -24,7 +24,7 @@ const QUICK_ACTIONS = [
 ];
 
 export default function DashboardOperativo(_props: ModuleProps) {
-  const wm = useWindowManager();
+  const nm = useNavManager();
   const semester = useActiveSemester();
   const grid = useAvailabilityGridQuery(
     semester ? { semesterId: semester.id, includePuntual: true } : null,
@@ -72,7 +72,7 @@ export default function DashboardOperativo(_props: ModuleProps) {
           loading={!grid.data && grid.isLoading}
           items={freeNow}
           outOfHours={outOfHours}
-          onSelect={(id) => wm.openWindow("tabla-semanal", { classroomId: id })}
+          onSelect={(id) => nm.openModule("tabla-semanal", { classroomId: id })}
         />
 
         <section className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm">
@@ -83,7 +83,7 @@ export default function DashboardOperativo(_props: ModuleProps) {
             <button
               type="button"
               className="btn btn-ghost btn-sm"
-              onClick={() => wm.openWindow("reservas")}
+              onClick={() => nm.openModule("reservas")}
             >
               Ver todas
             </button>
@@ -145,7 +145,7 @@ export default function DashboardOperativo(_props: ModuleProps) {
             key={id}
             type="button"
             className="btn btn-primary btn-sm"
-            onClick={() => wm.openWindow(id)}
+            onClick={() => nm.openModule(id)}
           >
             <Icon size={13} /> {label}
           </button>
