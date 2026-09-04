@@ -12,7 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { AVAILABILITY_STATE_META, DAY_NAMES } from "../../../lib/constants";
+import { AVAILABILITY_STATE_META, CLASSROOM_ORDER, DAY_NAMES } from "../../../lib/constants";
 import { apiErrorToMessage, isApiError } from "../../../lib/errors";
 import { fmtDate, slotLabel, todayISO } from "../../../lib/format";
 import {
@@ -94,6 +94,8 @@ function weekDayToDate(dayOfWeek: number): string {
   return target.toISOString().slice(0, 10);
 }
 
+const VIEW_MODE_KEY = "labmanage:tabla:viewMode";
+
 export default function WeeklyScheduleModule({
   params,
 }: {
@@ -116,6 +118,39 @@ export default function WeeklyScheduleModule({
   const [semesterId, setSemesterId] = useState(paramSemesterId);
   const [editMode, setEditMode] = useState(false);
   const [selectedCell, setSelectedCell] = useState<string | null>(null);
+  const [selectedClassroomId, setSelectedClassroomId] = useState<string | null>(null);
+
+  const [viewMode, setViewMode] = useState<"single" | "all">(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = window.localStorage.getItem(VIEW_MODE_KEY);
+        if (stored === "all" || stored === "single") {
+          if (stored === "all" && !isEncargado) return "single";
+          return stored;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return isEncargado ? "all" : "single";
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(VIEW_MODE_KEY, viewMode);
+    } catch {
+      // ignore storage errors (SSR / private mode)
+    }
+  }, [viewMode]);
+
+  // Force single view when entering edit mode or when user is not encargado
+  useEffect(() => {
+    if (editMode && viewMode === "all") setViewMode("single");
+  }, [editMode, viewMode]);
+
+  useEffect(() => {
+    if (!isEncargado && viewMode === "all") setViewMode("single");
+  }, [isEncargado, viewMode]);
 
   useEffect(() => {
     if (!semesterId && activeSemester) setSemesterId(activeSemester.id);
@@ -129,22 +164,38 @@ export default function WeeklyScheduleModule({
   }, [classrooms.data, classroomId]);
 
   useEffect(() => {
-    if (editMode) setSelectedCell(null);
+    if (editMode) {
+      setSelectedCell(null);
+      setSelectedClassroomId(null);
+    }
   }, [editMode]);
 
   useEffect(() => {
     setSelectedCell(null);
+    setSelectedClassroomId(null);
   }, [classroomId, semesterId]);
 
-  const ready = Boolean(classroomId && semesterId);
+  useEffect(() => {
+    setSelectedCell(null);
+    setSelectedClassroomId(null);
+  }, [viewMode]);
 
-  const gridQuery = useAvailabilityGridQuery(
-    !editMode && ready ? { classroomId, semesterId } : null,
+  const readySingle = Boolean(classroomId && semesterId);
+
+  const gridQuerySingle = useAvailabilityGridQuery(
+    !editMode && readySingle && viewMode === "single" ? { classroomId, semesterId } : null,
+  );
+
+  // Alias for backward compat where old code referenced gridQuery
+  const gridQuery = gridQuerySingle;
+
+  const gridQueryAll = useAvailabilityGridQuery(
+    !editMode && Boolean(semesterId) && viewMode === "all" ? { semesterId } : null,
   );
 
   const schedulesQuery = useSchedulesQuery(
     { classroomId, semesterId },
-    editMode && ready,
+    editMode && readySingle,
   );
 
   const subjects = useSubjectsQuery({ page: 1, pageSize: 100 }, true);
@@ -157,7 +208,7 @@ export default function WeeklyScheduleModule({
 
   const { create, update, remove } = useScheduleMutations();
 
-  const [creating, setCreating] = useState<{ day: number; timeSlotId: string } | null>(null);
+  const [creating, setCreating] = useState<{ day: number; timeSlotId: string; classroomId: string } | null>(null);
   const [blockForm, setBlockForm] = useState<BlockFormState>(EMPTY_BLOCK);
   const [formError, setFormError] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<Schedule | null>(null);
@@ -167,13 +218,27 @@ export default function WeeklyScheduleModule({
   }, [allTimeSlots.data]);
 
   const viewEntries = useMemo<Record<string, GridEntryVM>>(() => {
-    const grid = gridQuery.data;
+    const grid = gridQuerySingle.data;
     if (!grid) return {};
     const classroom = grid.classrooms.find((gc) => gc.classroom.id === classroomId);
     return classroom ? buildEntriesFromClassroom(classroom) : {};
-  }, [gridQuery.data, classroomId]);
+  }, [gridQuerySingle.data, classroomId]);
 
-  const viewTimeSlots = gridQuery.data?.timeSlots ?? gridTimeSlots;
+  const viewTimeSlots = gridQuerySingle.data?.timeSlots ?? gridTimeSlots;
+
+  const sortedClassrooms = useMemo(() => {
+    const data = gridQueryAll.data;
+    if (!data) return [];
+    const orderMap = new Map<string, number>(CLASSROOM_ORDER.map((code, idx) => [code, idx]));
+    return [...data.classrooms].sort((a, b) => {
+      const ai = orderMap.get(a.classroom.code);
+      const bi = orderMap.get(b.classroom.code);
+      if (ai !== undefined && bi !== undefined) return ai - bi;
+      if (ai !== undefined) return -1;
+      if (bi !== undefined) return 1;
+      return a.classroom.code.localeCompare(b.classroom.code);
+    });
+  }, [gridQueryAll.data]);
 
   const editEntries = useMemo(() => {
     const map: Record<string, GridEntryVM> = {};
@@ -184,10 +249,17 @@ export default function WeeklyScheduleModule({
   }, [schedulesQuery.data]);
 
   const activeEntries = editMode ? editEntries : viewEntries;
-  const workingDays = (editMode ? activeSemester?.workingDays : gridQuery.data?.semester.workingDays) ?? [1, 2, 3, 4, 5, 6];
+  const workingDays = (editMode ? activeSemester?.workingDays : gridQuerySingle.data?.semester.workingDays) ?? [1, 2, 3, 4, 5, 6];
 
   const handleViewCellClick = (key: string, _entry: GridEntryVM | null) => {
     if (!classroomId || !semesterId) return;
+    setSelectedClassroomId(classroomId);
+    setSelectedCell(key);
+  };
+
+  const handleViewCellClickForClassroom = (targetClassroomId: string, key: string, _entry: GridEntryVM | null) => {
+    if (!targetClassroomId || !semesterId) return;
+    setSelectedClassroomId(targetClassroomId);
     setSelectedCell(key);
   };
 
@@ -209,17 +281,41 @@ export default function WeeklyScheduleModule({
     const { day, slotId } = parseCellKey(key);
     setBlockForm(EMPTY_BLOCK);
     setFormError(null);
-    setCreating({ day, timeSlotId: slotId });
+    setCreating({ day, timeSlotId: slotId, classroomId });
   };
 
+  const handleEditCellClickForClassroom = (targetClassroomId: string, key: string, entry: GridEntryVM | null) => {
+    if (!targetClassroomId || !semesterId) return;
+    if (entry?.kind === "SCHEDULE" && isScheduleRaw(entry.raw)) {
+      setBlockForm(EMPTY_BLOCK);
+      setFormError(null);
+      setEditTarget(entry.raw);
+      return;
+    }
+    if (entry) {
+      toast.info("Solo los bloques de planilla pueden editarse desde aquí.");
+      return;
+    }
+    const { day, slotId } = parseCellKey(key);
+    setBlockForm(EMPTY_BLOCK);
+    setFormError(null);
+    setCreating({ day, timeSlotId: slotId, classroomId: targetClassroomId });
+  };
+
+  const creatingClassroom = useMemo(() => {
+    if (!creating) return null;
+    return (classrooms.data?.data ?? []).find((c) => c.id === creating.classroomId) ?? null;
+  }, [creating, classrooms.data]);
+
   const submitCreate = async () => {
-    if (!creating || !classroomId || !semesterId) return;
+    if (!creating || !semesterId) return;
+    if (!creating.classroomId) return;
     if (!blockForm.subjectId) {
       setFormError("Seleccione una materia.");
       return;
     }
     const input: ScheduleWriteInput = {
-      classroomId,
+      classroomId: creating.classroomId,
       semesterId,
       subjectId: blockForm.subjectId,
       teacherId: blockForm.teacherId || undefined,
@@ -279,12 +375,19 @@ export default function WeeklyScheduleModule({
   const stateDate = selectedParsed ? weekDayToDate(selectedParsed.day) : todayISO();
   const stateTimeSlotId = selectedParsed?.slotId ?? "";
 
+  const activeClassroomIdForState = viewMode === "all" ? selectedClassroomId : classroomId;
+
   const stateQuery = useClassroomStateQuery(
-    selectedCell && classroomId ? classroomId : null,
+    selectedCell && activeClassroomIdForState ? activeClassroomIdForState : null,
     { date: stateDate, timeSlotId: stateTimeSlotId },
   );
   const stateResult: ClassroomStateResult | undefined = stateQuery.data;
   const stateMeta = stateResult ? AVAILABILITY_STATE_META[stateResult.state] : null;
+
+  const clearSelection = () => {
+    setSelectedCell(null);
+    setSelectedClassroomId(null);
+  };
 
   return (
     <div className="scroll-thin flex h-full min-h-0 flex-col gap-3 overflow-hidden p-4">
@@ -300,16 +403,44 @@ export default function WeeklyScheduleModule({
             </>
           )}
         </h2>
-        <div className="w-56">
-          <SelectInput
-            options={(classrooms.data?.data ?? [])
-              .filter((c) => c.status !== "INACTIVA")
-              .map((c) => ({ value: c.id, label: `${c.code} · ${c.name}` }))}
-            placeholder="Seleccione aula…"
-            value={classroomId}
-            onChange={(e) => setClassroomId(e.target.value)}
-          />
-        </div>
+        {isEncargado && !editMode && (
+          <div className="flex items-center rounded-lg border border-slate-200 bg-slate-100 p-0.5">
+            <button
+              type="button"
+              onClick={() => setViewMode("all")}
+              className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                viewMode === "all"
+                  ? "bg-white font-semibold text-slate-800 shadow-sm"
+                  : "text-slate-600 hover:text-slate-800"
+              }`}
+            >
+              Todas (2 cols)
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("single")}
+              className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                viewMode === "single"
+                  ? "bg-white font-semibold text-slate-800 shadow-sm"
+                  : "text-slate-600 hover:text-slate-800"
+              }`}
+            >
+              Una aula
+            </button>
+          </div>
+        )}
+        {viewMode === "single" && (
+          <div className="w-56">
+            <SelectInput
+              options={(classrooms.data?.data ?? [])
+                .filter((c) => c.status !== "INACTIVA")
+                .map((c) => ({ value: c.id, label: `${c.code} · ${c.name}` }))}
+              placeholder="Seleccione aula…"
+              value={classroomId}
+              onChange={(e) => setClassroomId(e.target.value)}
+            />
+          </div>
+        )}
         <div className="w-44">
           <SelectInput
             options={(semesters.data?.data ?? []).map((s) => ({
@@ -338,7 +469,7 @@ export default function WeeklyScheduleModule({
             )}
           </button>
         )}
-        {!editMode && selectedClassroom && (
+        {!editMode && (selectedClassroom || viewMode === "all") && semesterId && (
           <span className="ml-auto text-[11px] text-slate-500">
             Haga clic en un bloque para ver su estado en tiempo real.
           </span>
@@ -357,9 +488,71 @@ export default function WeeklyScheduleModule({
         </p>
       )}
 
+      {editMode && viewMode === "all" && (
+        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] text-amber-800">
+          Edición solo en vista Una aula. Cambie a vista individual para gestionar bloques.
+        </p>
+      )}
+
       <div className="flex min-h-0 flex-1 gap-3 overflow-hidden">
-        <div className="flex min-w-0 flex-1 flex-col">
-          {!ready ? (
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          {viewMode === "all" && !editMode ? (
+            !semesterId ? (
+              <LoadingBlock label="Seleccione semestre…" />
+            ) : gridQueryAll.isLoading && !gridQueryAll.data ? (
+              <LoadingBlock label="Cargando tabla semanal…" />
+            ) : gridQueryAll.error && !gridQueryAll.data ? (
+              <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                No se pudo cargar la tabla semanal. Intente nuevamente.
+              </p>
+            ) : !gridQueryAll.data || sortedClassrooms.length === 0 ? (
+              <div className="flex flex-1 items-center justify-center text-xs text-slate-400">
+                No hay aulas disponibles para el semestre seleccionado.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 auto-rows-min overflow-auto scroll-thin pb-1 pr-1">
+                {sortedClassrooms.map((gc) => {
+                  const hasMaintenance = gc.maintenance.some((m) => m.status !== "COMPLETADO");
+                  const entries = buildEntriesFromClassroom(gc);
+                  const working = gridQueryAll.data!.semester.workingDays;
+                  const slots = gridQueryAll.data!.timeSlots;
+                  return (
+                    <div
+                      key={gc.classroom.id}
+                      className="border border-slate-200 rounded-lg bg-white p-2 flex flex-col gap-2"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-slate-800">
+                          {gc.classroom.code} · {gc.classroom.name}
+                        </span>
+                        <span
+                          className={`h-2 w-2 rounded-full ${hasMaintenance ? "bg-amber-500" : "bg-emerald-500"}`}
+                          title={hasMaintenance ? "En mantenimiento" : "Activa"}
+                        />
+                        {hasMaintenance && (
+                          <Badge tone="warning">
+                            <Wrench size={10} /> Mantenimiento
+                          </Badge>
+                        )}
+                      </div>
+                      <WeeklyGrid
+                        compact
+                        legend={false}
+                        workingDays={working}
+                        timeSlots={slots}
+                        entries={entries}
+                        onCellClick={(key, entry) =>
+                          editMode
+                            ? handleEditCellClickForClassroom(gc.classroom.id, key, entry)
+                            : handleViewCellClickForClassroom(gc.classroom.id, key, entry)
+                        }
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          ) : !readySingle ? (
             <LoadingBlock label="Seleccione aula y semestre…" />
           ) : editMode ? (
             schedulesQuery.isLoading && !schedulesQuery.data ? (
@@ -409,7 +602,7 @@ export default function WeeklyScheduleModule({
               </h3>
               <button
                 type="button"
-                onClick={() => setSelectedCell(null)}
+                onClick={clearSelection}
                 className="rounded p-0.5 text-slate-400 hover:text-slate-600"
               >
                 <X size={14} />
@@ -508,14 +701,17 @@ export default function WeeklyScheduleModule({
                       type="button"
                       className="btn btn-primary"
                       onClick={() => {
-                        setSelectedCell(null);
+                        clearSelection();
                         setEditMode(true);
-                        setCreating({
-                          day: selectedParsed!.day,
-                          timeSlotId: selectedParsed!.slotId,
-                        });
-                        setBlockForm(EMPTY_BLOCK);
-                        setFormError(null);
+                        if (selectedParsed) {
+                          setCreating({
+                            day: selectedParsed.day,
+                            timeSlotId: selectedParsed.slotId,
+                            classroomId: stateResult.classroomId,
+                          });
+                          setBlockForm(EMPTY_BLOCK);
+                          setFormError(null);
+                        }
                       }}
                     >
                       Asignar en planilla
@@ -552,7 +748,7 @@ export default function WeeklyScheduleModule({
       >
         <div className="space-y-3.5">
           <p className="rounded-md bg-sky-50 px-3 py-2 text-[11px] text-sky-800">
-            Aula <strong>{selectedClassroom?.code}</strong> ·{" "}
+            Aula <strong>{creatingClassroom?.code ?? creating?.classroomId ?? "—"}</strong> ·{" "}
             {creating ? DAY_LABEL(creating.day) : ""} ·{" "}
             {creating ? slotLabelText(creating.timeSlotId, gridTimeSlots) : ""}
           </p>

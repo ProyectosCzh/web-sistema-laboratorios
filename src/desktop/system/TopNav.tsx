@@ -2,7 +2,6 @@ import { LayoutGrid, LogOut, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ROLE_LABELS } from "../../lib/constants";
 import { useAuth } from "./AuthContext";
-import { getModule } from "./registry";
 import { useNavManager } from "./NavManager";
 
 interface TopNavProps {
@@ -43,41 +42,7 @@ export function TopNav({ onToggleSidebar, sidebarOpen }: TopNavProps) {
 
       <span className="top-nav-divider" />
 
-      <div className="top-nav-tabs">
-        {nm.openModules.map((mod) => {
-          const def = getModule(mod.id);
-          const Icon = def?.icon;
-          const isActive = nm.activeModuleId === mod.id && !nm.homeActive;
-          return (
-            <button
-              key={mod.id}
-              type="button"
-              onClick={() => nm.setActiveModule(mod.id)}
-              className={`top-nav-tab ${isActive ? "active" : ""}`}
-            >
-              {Icon && <Icon size={13} />}
-              <span className="truncate">{def?.title ?? mod.id}</span>
-              <span
-                role="button"
-                tabIndex={0}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  nm.closeModule(mod.id);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.stopPropagation();
-                    nm.closeModule(mod.id);
-                  }
-                }}
-                className="top-nav-tab-close"
-              >
-                <X size={12} />
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      <div className="flex flex-1" aria-hidden />
 
       <div className="top-nav-right">
         <div className="hidden text-right sm:block">

@@ -94,6 +94,13 @@ const TONE_CHIP_CLASSES: Record<GridEntryVM["tone"], string> = {
   blocked: "rounded bg-slate-500/95 px-1.5 py-1 text-white shadow-sm",
 };
 
+const TONE_CHIP_CLASSES_COMPACT: Record<GridEntryVM["tone"], string> = {
+  schedule: "rounded bg-sky-600/95 px-1 py-0.5 text-white shadow-sm",
+  pending: "rounded bg-amber-500/95 px-1 py-0.5 text-white shadow-sm",
+  confirmed: "rounded bg-rose-600/95 px-1 py-0.5 text-white shadow-sm",
+  blocked: "rounded-sm bg-slate-500/95 px-1 py-0.5 text-white shadow-sm",
+};
+
 const LEGEND_ITEMS = [
   { label: "Disponible", cls: "bg-emerald-200 border border-emerald-400" },
   { label: "Clase / planilla", cls: "bg-sky-600" },
@@ -122,6 +129,8 @@ interface WeeklyGridProps {
   onCellClick?: (key: string, entry: GridEntryVM | null) => void;
   banner?: ReactNode;
   legend?: boolean;
+  compact?: boolean;
+  className?: string;
 }
 
 export function WeeklyGrid({
@@ -131,27 +140,40 @@ export function WeeklyGrid({
   onCellClick,
   banner,
   legend = true,
+  compact = false,
+  className,
 }: WeeklyGridProps) {
   const days = [...workingDays].sort((a, b) => a - b);
   const slots = [...timeSlots].sort((a, b) => a.order - b.order);
 
+  const toneClasses = compact ? TONE_CHIP_CLASSES_COMPACT : TONE_CHIP_CLASSES;
+  const tableSpacing = compact ? "border-spacing-0.5" : "border-spacing-1";
+  const headerBlockCls = compact
+    ? "rounded-sm bg-slate-100 px-1.5 py-1 text-[10px] font-bold tracking-wide text-slate-500 uppercase"
+    : "rounded-md bg-slate-100 px-2 py-2 text-[10px] font-bold tracking-wide text-slate-500 uppercase";
+  const headerDayCls = compact
+    ? "rounded-sm bg-slate-100 px-1.5 py-1 text-[10px] font-bold tracking-wide text-slate-600 uppercase"
+    : "rounded-md bg-slate-100 px-2 py-2 text-[11px] font-bold tracking-wide text-slate-600 uppercase";
+  const slotCellCls = compact
+    ? "flex flex-col justify-center rounded-sm bg-slate-800 px-1.5 py-1 text-white"
+    : "flex flex-col justify-center rounded-md bg-slate-800 px-2 py-1.5 text-white";
+  const cellHeightCls = compact ? "h-11 p-0 align-top" : "h-16 p-0 align-top";
+  const gridCellExtra = compact ? "grid-cell-compact" : "";
+  const outerTextSize = compact ? "text-[11px]" : "text-xs";
+
   return (
-    <div className="flex min-h-0 flex-col gap-2">
+    <div className={`flex min-h-0 flex-col gap-2 ${className ?? ""}`}>
       {banner}
       <div className="scroll-thin overflow-auto pb-1">
-        <table className="w-full border-separate border-spacing-1 text-xs">
+        <table className={`w-full border-separate ${tableSpacing} ${outerTextSize}`}>
           <thead>
             <tr>
               <th className="sticky left-0 z-[2] w-24 min-w-24 bg-white p-0">
-                <div className="rounded-md bg-slate-100 px-2 py-2 text-[10px] font-bold tracking-wide text-slate-500 uppercase">
-                  Bloque
-                </div>
+                <div className={headerBlockCls}>Bloque</div>
               </th>
               {days.map((day) => (
                 <th key={day} className="p-0">
-                  <div className="rounded-md bg-slate-100 px-2 py-2 text-[11px] font-bold tracking-wide text-slate-600 uppercase">
-                    {DAY_SHORT[day] ?? `D${day}`}
-                  </div>
+                  <div className={headerDayCls}>{DAY_SHORT[day] ?? `D${day}`}</div>
                 </th>
               ))}
             </tr>
@@ -160,9 +182,15 @@ export function WeeklyGrid({
             {slots.map((slot) => (
               <tr key={slot.id}>
                 <td className="sticky left-0 z-[1] bg-white p-0 align-middle">
-                  <div className="flex flex-col justify-center rounded-md bg-slate-800 px-2 py-1.5 text-white">
+                  <div className={slotCellCls}>
                     <span className="text-[10px] font-bold">{slot.label}</span>
-                    <span className="text-[10px] whitespace-nowrap text-slate-300">
+                    <span
+                      className={
+                        compact
+                          ? "text-[9px] whitespace-nowrap text-slate-300"
+                          : "text-[10px] whitespace-nowrap text-slate-300"
+                      }
+                    >
                       {slotRange(slot)}
                     </span>
                   </div>
@@ -175,12 +203,12 @@ export function WeeklyGrid({
                     ? "grid-cell-free"
                     : "cursor-default border-emerald-200 bg-emerald-50 text-emerald-700";
                   return (
-                    <td key={key} className="h-16 p-0 align-top">
+                    <td key={key} className={cellHeightCls}>
                       <button
                         type="button"
                         disabled={!clickable}
                         onClick={() => onCellClick?.(key, entry)}
-                        className={`grid-cell h-full w-full ${
+                        className={`grid-cell h-full w-full ${gridCellExtra} ${
                           entry ? "cursor-pointer border-slate-200 bg-slate-50 hover:border-sky-400" : freeCls
                         }`}
                         title={
@@ -188,7 +216,7 @@ export function WeeklyGrid({
                         }
                       >
                         {entry ? (
-                          <span className={`w-full ${TONE_CHIP_CLASSES[entry.tone]}`}>
+                          <span className={`w-full ${toneClasses[entry.tone]}`}>
                             <span className="block truncate font-bold">{entry.title}</span>
                             {entry.subtitle && (
                               <span className="block truncate opacity-90">{entry.subtitle}</span>

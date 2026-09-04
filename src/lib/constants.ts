@@ -85,6 +85,17 @@ export const MAINTENANCE_STATUS_TONES: Record<MaintenanceStatus, Tone> = {
   COMPLETADO: "success",
 };
 
+export const CLASSROOM_ORDER = [
+  "D404",
+  "D403",
+  "D402",
+  "D401",
+  "D302",
+  "D304",
+  "D201",
+  "E112",
+] as const;
+
 export const AVAILABILITY_STATE_META: Record<
   string,
   { label: string; description: string; tone: Tone }

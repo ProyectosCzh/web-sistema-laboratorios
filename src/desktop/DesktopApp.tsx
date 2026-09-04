@@ -2,14 +2,15 @@ import { useMemo, useState } from "react";
 import { useEffect } from "react";
 import { getSession, redirectToLogin } from "../lib/session";
 import type { UserRole } from "../lib/types";
-import { modulesForRole, getModule } from "./system/registry";
+import { modulesForRole } from "./system/registry";
 import { QueryProvider } from "../providers/QueryProvider";
 import { AuthProvider, useAuth } from "./system/AuthContext";
 import { DialogProvider } from "./system/DialogHost";
 import { ToastProvider } from "./system/ToastProvider";
 import { NavManagerProvider, useNavManager } from "./system/NavManager";
 import { TopNav } from "./system/TopNav";
-import { ModulePanel } from "./system/ModulePanel";
+import { ModuleStage } from "./system/ModuleStage";
+import { ModuleDock } from "./system/ModuleDock";
 import { HomeScreen } from "./home/HomeScreen";
 
 export default function DesktopApp() {
@@ -70,22 +71,14 @@ function Shell() {
           </nav>
         </aside>
 
-        <main className="app-content">
+        <main className="app-content flex flex-col overflow-hidden">
           {nm.homeActive ? (
             <HomeScreen role={user.role} />
           ) : (
-            <div className="module-grid">
-              {nm.openModules.map((mod: import("./system/windowTypes").ModuleInstance) => {
-                const def = getModule(mod.id);
-                if (!def) return null;
-                const Component = def.component;
-                return (
-                  <ModulePanel key={mod.id} module={mod}>
-                    <Component params={mod.params} winId={mod.id} />
-                  </ModulePanel>
-                );
-              })}
-            </div>
+            <>
+              <ModuleStage />
+              <ModuleDock />
+            </>
           )}
         </main>
       </div>
