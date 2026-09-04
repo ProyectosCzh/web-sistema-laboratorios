@@ -148,15 +148,17 @@ export function WeeklyGrid({
 
   const toneClasses = compact ? TONE_CHIP_CLASSES_COMPACT : TONE_CHIP_CLASSES;
   const tableSpacing = compact ? "border-spacing-0.5" : "border-spacing-1";
+  const headerThClsCompact = "sticky left-0 z-[2] w-14 min-w-14 bg-white p-0"; // 56px
+  const headerThClsNormal = "sticky left-0 z-[2] w-[68px] min-w-[68px] bg-white p-0";
   const headerBlockCls = compact
-    ? "rounded-sm bg-slate-100 px-1.5 py-1 text-[10px] font-bold tracking-wide text-slate-500 uppercase"
-    : "rounded-md bg-slate-100 px-2 py-2 text-[10px] font-bold tracking-wide text-slate-500 uppercase";
+    ? "rounded-sm bg-slate-100 px-1.5 py-1 text-center text-[10px] font-bold tracking-wide text-slate-500 uppercase"
+    : "rounded-md bg-slate-100 px-2 py-2 text-center text-[10px] font-bold tracking-wide text-slate-500 uppercase";
   const headerDayCls = compact
     ? "rounded-sm bg-slate-100 px-1.5 py-1 text-[10px] font-bold tracking-wide text-slate-600 uppercase"
     : "rounded-md bg-slate-100 px-2 py-2 text-[11px] font-bold tracking-wide text-slate-600 uppercase";
   const slotCellCls = compact
-    ? "flex flex-col justify-center rounded-sm bg-slate-800 px-1.5 py-1 text-white"
-    : "flex flex-col justify-center rounded-md bg-slate-800 px-2 py-1.5 text-white";
+    ? "flex flex-col items-center justify-center rounded-sm bg-slate-800 px-1 py-1 text-white text-center"
+    : "flex flex-col items-center justify-center rounded-md bg-slate-800 px-1.5 py-1.5 text-white text-center";
   const cellHeightCls = compact ? "h-11 p-0 align-top" : "h-16 p-0 align-top";
   const gridCellExtra = compact ? "grid-cell-compact" : "";
   const outerTextSize = compact ? "text-[11px]" : "text-xs";
@@ -168,7 +170,7 @@ export function WeeklyGrid({
         <table className={`w-full border-separate ${tableSpacing} ${outerTextSize}`}>
           <thead>
             <tr>
-              <th className="sticky left-0 z-[2] w-24 min-w-24 bg-white p-0">
+              <th className={compact ? headerThClsCompact : headerThClsNormal}>
                 <div className={headerBlockCls}>Bloque</div>
               </th>
               {days.map((day) => (
@@ -182,13 +184,12 @@ export function WeeklyGrid({
             {slots.map((slot) => (
               <tr key={slot.id}>
                 <td className="sticky left-0 z-[1] bg-white p-0 align-middle">
-                  <div className={slotCellCls}>
-                    <span className="text-[10px] font-bold">{slot.label}</span>
+                  <div className={slotCellCls} title={`${slot.label} ${slotRange(slot)}`}>
                     <span
                       className={
                         compact
-                          ? "text-[9px] whitespace-nowrap text-slate-300"
-                          : "text-[10px] whitespace-nowrap text-slate-300"
+                          ? "text-[9px] font-semibold tabular-nums leading-none"
+                          : "text-[11px] font-semibold tabular-nums leading-none"
                       }
                     >
                       {slotRange(slot)}
